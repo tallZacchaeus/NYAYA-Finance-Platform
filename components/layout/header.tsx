@@ -5,36 +5,28 @@ import Link from 'next/link';
 import { Bell, Menu, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Notification } from '@/lib/types';
+import { useSidebar } from '@/lib/sidebar-context';
 
 interface HeaderProps {
   title: string;
   userId: string;
-  onMenuToggle?: () => void;
-  showMenuButton?: boolean;
 }
 
-export function Header({ title, userId, onMenuToggle, showMenuButton }: HeaderProps) {
+export function Header({ title, userId }: HeaderProps) {
+  const { open, setOpen } = useSidebar();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
 
   useEffect(() => {
     if (userId) {
-      fetchNotifications();
+      fetch('/api/notifications')
+        .then((res) => res.ok ? res.json() : null)
+        .then((data) => {
+          if (data) setNotifications(data.notifications || []);
+        })
+        .catch(() => {});
     }
   }, [userId]);
-
-  const fetchNotifications = async () => {
-    try {
-      const res = await fetch('/api/notifications');
-      if (res.ok) {
-        const data = await res.json();
-        setNotifications(data.notifications || []);
-      }
-    } catch {
-      // Silently fail - notifications are non-critical
-    }
-  };
 
   const unreadCount = notifications.filter((n) => !n.read).length;
 
@@ -43,34 +35,34 @@ export function Header({ title, userId, onMenuToggle, showMenuButton }: HeaderPr
       await fetch('/api/notifications', { method: 'PATCH' });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
     } catch {
-      // Silently fail
+      // non-critical
     }
   };
 
   return (
     <header className="sticky top-0 z-20 bg-white border-b border-gray-200">
-      <div className="flex items-center justify-between h-16 px-6">
+      <div className="flex items-center justify-between h-14 px-4 sm:h-16 sm:px-6">
         <div className="flex items-center gap-3">
-          {showMenuButton && (
-            <button
-              onClick={() => {
-                setIsMenuOpen(!isMenuOpen);
-                onMenuToggle?.();
-              }}
-              className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors lg:hidden"
-            >
-              {isMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-            </button>
-          )}
-          <h1 className="text-xl font-semibold text-gray-900">{title}</h1>
+          {/* Hamburger — mobile only */}
+          <button
+            type="button"
+            onClick={() => setOpen(!open)}
+            className="lg:hidden p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+            aria-label="Toggle menu"
+          >
+            {open ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          <h1 className="text-lg font-semibold text-gray-900 sm:text-xl">{title}</h1>
         </div>
 
         <div className="flex items-center gap-2">
           {/* Notifications */}
           <div className="relative">
             <button
+              type="button"
               onClick={() => setShowNotifications(!showNotifications)}
               className="relative p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              aria-label="Notifications"
             >
               <Bell className="w-5 h-5" />
               {unreadCount > 0 && (
@@ -80,13 +72,13 @@ export function Header({ title, userId, onMenuToggle, showMenuButton }: HeaderPr
               )}
             </button>
 
-            {/* Notifications dropdown */}
             {showNotifications && (
-              <div className="absolute right-0 mt-2 w-80 bg-white rounded-xl shadow-lg border border-gray-200 z-50">
+              <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] bg-white rounded-xl shadow-lg border border-gray-200 z-50">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200">
                   <h3 className="font-semibold text-gray-900">Notifications</h3>
                   {unreadCount > 0 && (
                     <button
+                      type="button"
                       onClick={markAllRead}
                       className="text-xs text-blue-600 hover:text-blue-700 font-medium"
                     >

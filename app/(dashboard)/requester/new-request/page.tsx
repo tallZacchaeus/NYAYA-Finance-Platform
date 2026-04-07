@@ -37,7 +37,7 @@ export default async function NewRequestPage() {
     <div>
       <Header title="New Request" userId={user.id} />
 
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-2xl mx-auto">
         <Link
           href="/requester"
           className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-700 mb-6 transition-colors"

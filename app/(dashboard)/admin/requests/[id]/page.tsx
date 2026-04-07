@@ -142,7 +142,7 @@ export default function AdminRequestDetail() {
 
   if (!request) {
     return (
-      <div className="p-6 text-center">
+      <div className="p-4 sm:p-6 text-center">
         <AlertCircle className="w-10 h-10 text-red-400 mx-auto mb-3" />
         <p className="text-gray-600">Request not found.</p>
         <Link href="/admin" className="text-blue-600 text-sm mt-2 inline-block">
@@ -153,7 +153,7 @@ export default function AdminRequestDetail() {
   }
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
+    <div className="p-4 sm:p-6 max-w-4xl mx-auto space-y-6">
       {/* Back + header */}
       <div>
         <Link

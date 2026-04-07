@@ -48,7 +48,7 @@ export default function NotificationsPage() {
     <div>
       <Header title="Notifications" userId="" />
 
-      <div className="p-6 max-w-2xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-2xl mx-auto">
         {/* Toolbar */}
         <div className="flex items-center justify-between mb-5">
           <p className="text-sm text-gray-500">

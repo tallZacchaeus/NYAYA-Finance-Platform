@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 import { auth } from '@/lib/auth';
-import { Sidebar } from '@/components/layout/sidebar';
+import { DashboardShell } from '@/components/layout/dashboard-shell';
 
 export default async function DashboardLayout({
   children,
@@ -21,23 +21,15 @@ export default async function DashboardLayout({
   };
 
   const role = user.role === 'admin' ? 'admin' : 'requester';
-  const userName = typeof user.name === 'string' && user.name.trim().length > 0
-    ? user.name
-    : 'User';
+  const userName =
+    typeof user.name === 'string' && user.name.trim().length > 0
+      ? user.name
+      : 'User';
   const userEmail = typeof user.email === 'string' ? user.email : '';
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <Sidebar
-        role={role}
-        userName={userName}
-        userEmail={userEmail}
-      />
-      <div className="flex-1 flex flex-col min-w-0 ml-64">
-        <main className="flex-1 overflow-y-auto">
-          {children}
-        </main>
-      </div>
-    </div>
+    <DashboardShell role={role} userName={userName} userEmail={userEmail}>
+      {children}
+    </DashboardShell>
   );
 }

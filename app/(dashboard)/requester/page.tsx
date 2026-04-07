@@ -126,12 +126,12 @@ export default async function RequesterDashboard() {
     <div>
       <Header title="My Requests" userId={user.id} />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         {/* Welcome banner */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-6 text-white">
-          <div className="flex items-center justify-between">
+        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
-              <h2 className="text-xl font-semibold">
+              <h2 className="text-lg sm:text-xl font-semibold">
                 Welcome back, {getFirstName(user.name)}!
               </h2>
               <p className="text-blue-100 mt-1 text-sm">
@@ -140,7 +140,7 @@ export default async function RequesterDashboard() {
             </div>
             <Link
               href="/requester/new-request"
-              className="flex items-center gap-2 bg-white text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors shadow-sm"
+              className="self-start sm:self-auto flex items-center gap-2 bg-white text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors shadow-sm"
             >
               <PlusCircle className="w-4 h-4" />
               New Request

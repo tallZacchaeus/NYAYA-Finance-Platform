@@ -72,7 +72,7 @@ export default function AdminUsersPage() {
     <div>
       <Header title="Users" userId="" />
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
         {/* Summary */}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
           <div className="bg-white rounded-xl border border-gray-200 p-4 flex items-center gap-3">

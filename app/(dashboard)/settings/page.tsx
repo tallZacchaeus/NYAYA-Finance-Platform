@@ -97,7 +97,7 @@ export default function SettingsPage() {
     <div>
       <Header title="Settings" userId={profile?.id || ''} />
 
-      <div className="p-6 max-w-xl mx-auto">
+      <div className="p-4 sm:p-6 max-w-xl mx-auto">
         {isLoading ? (
           <div className="bg-white rounded-xl border border-gray-200 p-12 text-center text-gray-400 flex items-center justify-center gap-2">
             <Loader2 className="w-4 h-4 animate-spin" />

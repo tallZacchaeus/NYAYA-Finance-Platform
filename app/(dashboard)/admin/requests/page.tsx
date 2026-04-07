@@ -50,7 +50,7 @@ export default function AdminRequestsPage() {
     <div>
       <Header title="All Requests" userId="" />
 
-      <div className="p-6 space-y-5">
+      <div className="p-4 sm:p-6 space-y-5">
         {/* Toolbar */}
         <div className="flex flex-col sm:flex-row gap-3">
           {/* Search */}

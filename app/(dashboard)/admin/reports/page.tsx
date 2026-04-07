@@ -48,7 +48,7 @@ export default async function AdminReportsPage() {
     <div>
       <Header title="Reports" userId={user.id} />
 
-      <div className="p-6 space-y-6">
+      <div className="p-4 sm:p-6 space-y-6">
         {/* Export */}
         <div className="flex flex-wrap gap-3">
           <a
@@ -152,9 +152,11 @@ export default async function AdminReportsPage() {
                     </span>
                   </div>
                   <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${color}`}
-                      style={{ width: `${total > 0 ? (count / total) * 100 : 0}%` }}
+                    <meter
+                      className={`block h-full w-full rounded-full appearance-none ${color}`}
+                      value={count}
+                      min={0}
+                      max={total > 0 ? total : 1}
                     />
                   </div>
                 </div>
