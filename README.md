@@ -55,12 +55,13 @@ Required variables:
 
 **Firebase Admin SDK (Server-side — keep secret):**
 
+- `FIREBASE_PROJECT_ID` - Firebase project ID from your service account
 - `FIREBASE_CLIENT_EMAIL` - Service account email
 - `FIREBASE_PRIVATE_KEY` - Service account private key
 
 **Firebase Session Auth:**
 
-- No separate auth environment variables are required beyond the Firebase client and admin credentials above.
+- Server-side session creation requires `FIREBASE_PROJECT_ID`, `FIREBASE_CLIENT_EMAIL`, and `FIREBASE_PRIVATE_KEY`.
 
 **Email:**
 

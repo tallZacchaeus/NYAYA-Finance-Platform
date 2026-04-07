@@ -3,16 +3,36 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { getAuth } from 'firebase-admin/auth';
 import { getStorage } from 'firebase-admin/storage';
 
+type FirebaseAdminEnvName =
+  | 'FIREBASE_PROJECT_ID'
+  | 'FIREBASE_CLIENT_EMAIL'
+  | 'FIREBASE_PRIVATE_KEY';
+
+function getRequiredFirebaseAdminEnv(name: FirebaseAdminEnvName) {
+  const value = process.env[name];
+
+  if (!value) {
+    throw new Error(`Missing required Firebase Admin environment variable: ${name}`);
+  }
+
+  return value;
+}
+
 function getAdminApp() {
   if (getApps().length > 0) return getApps()[0];
 
+  const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+
   return initializeApp({
     credential: cert({
-      projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL!,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY!.replace(/\\n/g, '\n'),
+      projectId: getRequiredFirebaseAdminEnv('FIREBASE_PROJECT_ID'),
+      clientEmail: getRequiredFirebaseAdminEnv('FIREBASE_CLIENT_EMAIL'),
+      privateKey: getRequiredFirebaseAdminEnv('FIREBASE_PRIVATE_KEY').replace(
+        /\\n/g,
+        '\n'
+      ),
     }),
-    storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+    ...(storageBucket ? { storageBucket } : {}),
   });
 }
 

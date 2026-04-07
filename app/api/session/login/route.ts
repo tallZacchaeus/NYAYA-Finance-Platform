@@ -15,6 +15,17 @@ const loginSchema = z.object({
 
 const DEFAULT_POST_LOGIN_REDIRECT = '/dashboard';
 
+function getSessionCreationErrorMessage(error: unknown) {
+  if (
+    error instanceof Error &&
+    error.message.startsWith('Missing required Firebase Admin environment variable:')
+  ) {
+    return 'Server authentication is not configured. Set FIREBASE_PROJECT_ID, FIREBASE_CLIENT_EMAIL, and FIREBASE_PRIVATE_KEY.';
+  }
+
+  return 'Unable to create session.';
+}
+
 export async function POST(request: Request) {
   try {
     const body = await request.json();
@@ -62,6 +73,9 @@ export async function POST(request: Request) {
     return response;
   } catch (error) {
     console.error('POST /api/session/login error:', error);
-    return NextResponse.json({ message: 'Unable to create session.' }, { status: 500 });
+    return NextResponse.json(
+      { message: getSessionCreationErrorMessage(error) },
+      { status: 500 }
+    );
   }
 }

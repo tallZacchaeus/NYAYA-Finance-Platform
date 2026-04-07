@@ -4,6 +4,8 @@ import { getAdminDb } from '@/lib/firebase-admin';
 import { serializeDoc } from '@/lib/firestore';
 import { format } from 'date-fns';
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     const session = await auth();
