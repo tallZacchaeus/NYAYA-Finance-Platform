@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
@@ -63,8 +63,10 @@ export default function RequesterRequestDetail() {
     );
   }
 
-  const statusIcons = {
+  const statusIcons: Partial<Record<typeof request.status, React.ReactElement>> = {
     pending: <Clock className="w-5 h-5 text-yellow-500" />,
+    recommended: <CheckCircle className="w-5 h-5 text-blue-500" />,
+    not_recommended: <XCircle className="w-5 h-5 text-orange-400" />,
     approved: <CheckCircle className="w-5 h-5 text-blue-500" />,
     rejected: <XCircle className="w-5 h-5 text-red-500" />,
     paid: <DollarSign className="w-5 h-5 text-purple-500" />,
