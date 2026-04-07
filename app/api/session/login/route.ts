@@ -61,7 +61,7 @@ async function ensureUserProfile(params: {
     updates.name = normalizedName;
   }
 
-  if (existing.role !== 'admin' && existing.role !== 'requester') {
+  if (existing.role !== 'admin' && existing.role !== 'finance' && existing.role !== 'requester') {
     updates.role = 'requester';
   }
 

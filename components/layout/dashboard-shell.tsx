@@ -6,7 +6,7 @@ import { SidebarProvider, useSidebar } from '@/lib/sidebar-context';
 import { Sidebar } from './sidebar';
 
 interface DashboardShellProps {
-  role: 'requester' | 'admin';
+  role: 'requester' | 'finance' | 'admin';
   userName: string;
   userEmail: string;
   children: React.ReactNode;

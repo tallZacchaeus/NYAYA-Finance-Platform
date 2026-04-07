@@ -14,8 +14,20 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/users/$(userId));
     }
 
+    function getRole() {
+      return userDoc(request.auth.uid).data.role;
+    }
+
     function isAdmin() {
-      return signedIn() && userDoc(request.auth.uid).data.role == 'admin';
+      return signedIn() && getRole() == 'admin';
+    }
+
+    function isFinance() {
+      return signedIn() && getRole() == 'finance';
+    }
+
+    function isAdminOrFinance() {
+      return isAdmin() || isFinance();
     }
 
     function requestDoc(requestId) {
@@ -32,7 +44,7 @@ service cloud.firestore {
         && request.resource.data.email is string
         && request.resource.data.name is string;
 
-      allow read: if isSelf(userId) || isAdmin();
+      allow read: if isSelf(userId) || isAdminOrFinance();
 
       allow update: if isAdmin() || (
         isSelf(userId)
@@ -44,13 +56,14 @@ service cloud.firestore {
     }
 
     match /requests/{requestId} {
-      allow read: if isAdmin() || ownsRequest(requestId);
+      // Admins and finance can read all requests
+      allow read: if isAdminOrFinance() || ownsRequest(requestId);
 
       allow create: if signedIn()
         && request.resource.data.user_id == request.auth.uid
         && request.resource.data.status == 'pending';
 
-      allow update: if isAdmin() || (
+      allow update: if isAdmin() || isFinance() || (
         ownsRequest(requestId)
         && resource.data.status == 'pending'
         && request.resource.data.user_id == resource.data.user_id
@@ -64,27 +77,27 @@ service cloud.firestore {
     }
 
     match /request_documents/{documentId} {
-      allow read: if isAdmin() || ownsRequest(resource.data.request_id);
+      allow read: if isAdminOrFinance() || ownsRequest(resource.data.request_id);
 
       allow create: if signedIn()
         && request.resource.data.uploaded_by == request.auth.uid
-        && (isAdmin() || ownsRequest(request.resource.data.request_id));
+        && (isAdminOrFinance() || ownsRequest(request.resource.data.request_id));
 
       allow update, delete: if isAdmin();
     }
 
     match /receipts/{receiptId} {
-      allow read: if isAdmin() || ownsRequest(resource.data.request_id);
+      allow read: if isAdminOrFinance() || ownsRequest(resource.data.request_id);
       allow create, update, delete: if isAdmin();
     }
 
     match /notifications/{notificationId} {
-      allow read: if isAdmin() || (
+      allow read: if isAdminOrFinance() || (
         signedIn()
         && resource.data.user_id == request.auth.uid
       );
 
-      allow create, delete: if isAdmin();
+      allow create, delete: if isAdminOrFinance();
 
       allow update: if isAdmin() || (
         signedIn()
@@ -98,7 +111,7 @@ service cloud.firestore {
     }
 
     match /audit_logs/{logId} {
-      allow read: if isAdmin();
+      allow read: if isAdminOrFinance();
       allow write: if false;
     }
 

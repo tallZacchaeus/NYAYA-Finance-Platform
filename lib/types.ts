@@ -1,8 +1,15 @@
-export type UserRole = 'requester' | 'admin';
+export type UserRole = 'requester' | 'finance' | 'admin';
 
 export type UserDesignation = 'Team Lead' | 'Unit Head' | 'Pastor';
 
-export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'completed';
+export type RequestStatus =
+  | 'pending'
+  | 'recommended'
+  | 'not_recommended'
+  | 'approved'
+  | 'rejected'
+  | 'paid'
+  | 'completed';
 
 export type RequestCategory = 'travel' | 'supplies' | 'events' | 'utilities' | 'personnel' | 'other';
 
@@ -25,6 +32,10 @@ export interface Request {
   category: RequestCategory;
   description?: string;
   status: RequestStatus;
+  recommendation_status?: 'recommended' | 'not_recommended';
+  recommendation_comment?: string;
+  recommended_by?: string;
+  recommended_at?: string;
   rejection_reason?: string;
   reviewed_by?: string;
   reviewed_at?: string;

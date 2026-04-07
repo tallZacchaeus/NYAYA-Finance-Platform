@@ -5,7 +5,7 @@ export interface AppSessionUser {
   id: string;
   email: string | null;
   name: string | null;
-  role?: string;
+  role?: 'requester' | 'finance' | 'admin';
 }
 
 export interface AppSession {
@@ -26,8 +26,10 @@ function getOptionalString(value: unknown): string | null {
   return typeof value === 'string' && value.trim().length > 0 ? value : null;
 }
 
-function getUserRole(value: unknown): 'requester' | 'admin' {
-  return value === 'admin' ? 'admin' : 'requester';
+function getUserRole(value: unknown): 'requester' | 'finance' | 'admin' {
+  if (value === 'admin') return 'admin';
+  if (value === 'finance') return 'finance';
+  return 'requester';
 }
 
 export function getSessionCookieOptions(maxAgeSeconds = SESSION_DURATION_MS / 1000) {

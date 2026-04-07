@@ -29,7 +29,7 @@ export async function PATCH(
     const body = await request.json();
     const { role } = body as { role: UserRole };
 
-    if (role !== 'admin' && role !== 'requester') {
+    if (role !== 'admin' && role !== 'finance' && role !== 'requester') {
       return NextResponse.json({ message: 'Invalid role' }, { status: 400 });
     }
 

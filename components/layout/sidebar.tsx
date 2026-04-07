@@ -25,7 +25,7 @@ interface NavItem {
 }
 
 interface SidebarProps {
-  role: 'requester' | 'admin';
+  role: 'requester' | 'finance' | 'admin';
   userName: string;
   userEmail: string;
   isOpen?: boolean;
@@ -42,6 +42,19 @@ const requesterNav: NavItem[] = [
     href: '/requester/new-request',
     label: 'New Request',
     icon: <PlusCircle className="w-5 h-5" />,
+  },
+];
+
+const financeNav: NavItem[] = [
+  {
+    href: '/finance',
+    label: 'Dashboard',
+    icon: <LayoutDashboard className="w-5 h-5" />,
+  },
+  {
+    href: '/finance/requests',
+    label: 'All Requests',
+    icon: <ClipboardList className="w-5 h-5" />,
   },
 ];
 
@@ -71,10 +84,10 @@ const adminNav: NavItem[] = [
 export function Sidebar({ role, userName, userEmail, isOpen = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const navItems = role === 'admin' ? adminNav : requesterNav;
+  const navItems = role === 'admin' ? adminNav : role === 'finance' ? financeNav : requesterNav;
 
   const isActive = (href: string) => {
-    if (href === '/requester' || href === '/admin') {
+    if (href === '/requester' || href === '/admin' || href === '/finance') {
       return pathname === href;
     }
     return pathname.startsWith(href);
@@ -107,7 +120,9 @@ export function Sidebar({ role, userName, userEmail, isOpen = false, onClose }: 
         </div>
         <div className="min-w-0 flex-1">
           <p className="font-semibold text-gray-900 truncate">NYAYA Finance</p>
-          <p className="text-xs text-gray-500 truncate capitalize">{role} Portal</p>
+          <p className="text-xs text-gray-500 truncate capitalize">
+            {role === 'finance' ? 'Finance' : role === 'admin' ? 'Admin' : 'Requester'} Portal
+          </p>
         </div>
         {/* Close button — mobile only */}
         <button

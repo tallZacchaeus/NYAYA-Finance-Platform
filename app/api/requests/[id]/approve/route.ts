@@ -35,9 +35,14 @@ export async function POST(
 
     const existing = reqDoc.data()!;
 
-    if (existing.status !== 'pending') {
+    const approvableStatuses = ['recommended', 'not_recommended'];
+    if (!approvableStatuses.includes(existing.status as string)) {
+      const hint =
+        existing.status === 'pending'
+          ? ' Awaiting finance recommendation before CEO action.'
+          : '';
       return NextResponse.json(
-        { message: `Cannot approve a request with status: ${existing.status}` },
+        { message: `Cannot approve a request with status: ${existing.status}.${hint}` },
         { status: 400 }
       );
     }
@@ -73,7 +78,7 @@ export async function POST(
       action: 'request_approved',
       user_id: user.id,
       metadata: {
-        previous_status: 'pending',
+        previous_status: existing.status,
         high_value: existing.amount >= APPROVAL_THRESHOLD,
       },
       timestamp: now,

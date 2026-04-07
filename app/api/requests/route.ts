@@ -45,7 +45,10 @@ export async function GET(request: Request) {
       .collection('requests')
       .orderBy('created_at', 'desc');
 
-    if (user.role !== 'admin') {
+    if (user.role === 'finance') {
+      // Finance sees all requests (they need to action any pending ones)
+      // no user_id filter — but we leave status filtering to in-memory below
+    } else if (user.role !== 'admin') {
       q = q.where('user_id', '==', user.id);
     }
 

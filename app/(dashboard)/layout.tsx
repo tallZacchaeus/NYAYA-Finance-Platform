@@ -20,7 +20,8 @@ export default async function DashboardLayout({
     role?: string;
   };
 
-  const role = user.role === 'admin' ? 'admin' : 'requester';
+  const role: 'requester' | 'finance' | 'admin' =
+    user.role === 'admin' ? 'admin' : user.role === 'finance' ? 'finance' : 'requester';
   const userName =
     typeof user.name === 'string' && user.name.trim().length > 0
       ? user.name

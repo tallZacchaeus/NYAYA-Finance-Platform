@@ -48,9 +48,14 @@ export async function POST(
 
     const existing = reqDoc.data()!;
 
-    if (existing.status !== 'pending') {
+    const rejectableStatuses = ['recommended', 'not_recommended'];
+    if (!rejectableStatuses.includes(existing.status as string)) {
+      const hint =
+        existing.status === 'pending'
+          ? ' Awaiting finance recommendation before CEO action.'
+          : '';
       return NextResponse.json(
-        { message: `Cannot reject a request with status: ${existing.status}` },
+        { message: `Cannot reject a request with status: ${existing.status}.${hint}` },
         { status: 400 }
       );
     }
@@ -73,7 +78,7 @@ export async function POST(
       request_id: params.id,
       action: 'request_rejected',
       user_id: user.id,
-      metadata: { reason: validated.data.reason, previous_status: 'pending' },
+      metadata: { reason: validated.data.reason, previous_status: existing.status },
       timestamp: now,
     });
 

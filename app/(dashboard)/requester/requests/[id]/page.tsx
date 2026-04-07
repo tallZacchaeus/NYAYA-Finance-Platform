@@ -103,6 +103,7 @@ export default function RequesterRequestDetail() {
       <Card>
         <h2 className="font-semibold text-gray-900 mb-4">Status Timeline</h2>
         <div className="space-y-3">
+          {/* Step 1: Submitted */}
           <div className="flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
             <div>
@@ -111,9 +112,39 @@ export default function RequesterRequestDetail() {
             </div>
           </div>
 
+          {/* Step 2: Finance review */}
+          {request.recommended_at ? (
+            <div className="flex items-start gap-3">
+              {request.recommendation_status === 'recommended'
+                ? <CheckCircle className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" />
+                : <XCircle className="w-5 h-5 text-orange-400 flex-shrink-0 mt-0.5" />}
+              <div>
+                <p className="text-sm font-medium text-gray-900">
+                  {request.recommendation_status === 'recommended'
+                    ? 'Reviewed by Finance'
+                    : 'Reviewed by Finance'}
+                </p>
+                <p className="text-xs text-gray-400">{formatDateTime(request.recommended_at)}</p>
+                {/* Show finance comment only after CEO has acted (approved or rejected) */}
+                {['approved', 'rejected', 'paid', 'completed'].includes(request.status) &&
+                  request.recommendation_comment && (
+                  <p className="text-xs text-gray-500 mt-1 italic">
+                    Finance note: "{request.recommendation_comment}"
+                  </p>
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 opacity-50">
+              <Clock className="w-5 h-5 text-gray-300 flex-shrink-0" />
+              <p className="text-sm text-gray-400">Awaiting finance review</p>
+            </div>
+          )}
+
+          {/* Step 3: CEO decision */}
           {request.reviewed_at && (
             <div className="flex items-center gap-3">
-              {statusIcons[request.status]}
+              {statusIcons[request.status] ?? statusIcons['approved']}
               <div>
                 <p className="text-sm font-medium text-gray-900 capitalize">
                   {request.status === 'rejected' ? 'Rejected' : 'Approved'}
@@ -123,6 +154,7 @@ export default function RequesterRequestDetail() {
             </div>
           )}
 
+          {/* Step 4: Payment */}
           {request.paid_at && (
             <div className="flex items-center gap-3">
               <DollarSign className="w-5 h-5 text-purple-500 flex-shrink-0" />
@@ -133,11 +165,12 @@ export default function RequesterRequestDetail() {
             </div>
           )}
 
+          {/* Step 5: Receipt / Completed */}
           {request.receipt && (
             <div className="flex items-center gap-3">
               <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
               <div>
-                <p className="text-sm font-medium text-gray-900">Receipt Uploaded - Completed</p>
+                <p className="text-sm font-medium text-gray-900">Receipt Uploaded — Completed</p>
                 <p className="text-xs text-gray-400">{formatDateTime(request.receipt.uploaded_at)}</p>
               </div>
             </div>
@@ -148,24 +181,22 @@ export default function RequesterRequestDetail() {
       {/* Details */}
       <Card>
         <h2 className="font-semibold text-gray-900 mb-4">Request Details</h2>
-        <dl className="space-y-3">
+        <div className="space-y-3">
           <div className="flex items-start gap-3">
             <Tag className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
-              <dt className="text-xs text-gray-400">Category</dt>
-              <dd className="text-sm font-medium text-gray-700 capitalize">{request.category}</dd>
+              <p className="text-xs text-gray-400">Category</p>
+              <p className="text-sm font-medium text-gray-700 capitalize">{request.category}</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
             <Calendar className="w-4 h-4 text-gray-400 mt-0.5 flex-shrink-0" />
             <div>
-              <dt className="text-xs text-gray-400">Submitted</dt>
-              <dd className="text-sm font-medium text-gray-700">
-                {formatDateTime(request.created_at)}
-              </dd>
+              <p className="text-xs text-gray-400">Submitted</p>
+              <p className="text-sm font-medium text-gray-700">{formatDateTime(request.created_at)}</p>
             </div>
           </div>
-        </dl>
+        </div>
 
         {request.description && (
           <div className="mt-4 pt-4 border-t border-gray-100">

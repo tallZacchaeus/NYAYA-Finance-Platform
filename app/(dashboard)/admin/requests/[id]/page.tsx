@@ -332,11 +332,53 @@ export default function AdminRequestDetail() {
             </Card>
           )}
 
+          {/* Finance Recommendation */}
+          <Card>
+            <h2 className="font-semibold text-gray-900 mb-3">Finance Recommendation</h2>
+            {request.recommendation_status ? (
+              <div className="space-y-2">
+                <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                  request.recommendation_status === 'recommended'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700'
+                }`}>
+                  {request.recommendation_status === 'recommended'
+                    ? <CheckCircle className="w-3.5 h-3.5" />
+                    : <XCircle className="w-3.5 h-3.5" />}
+                  {request.recommendation_status === 'recommended' ? 'Recommended' : 'Not Recommended'}
+                </span>
+                {request.recommendation_comment && (
+                  <div className="bg-gray-50 rounded-lg p-3 mt-2">
+                    <p className="text-xs text-gray-400 mb-1">Finance Comment</p>
+                    <p className="text-sm text-gray-700 italic">"{request.recommendation_comment}"</p>
+                  </div>
+                )}
+                {request.recommended_at && (
+                  <p className="text-xs text-gray-400">{formatDateTime(request.recommended_at)}</p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 text-yellow-600 bg-yellow-50 rounded-lg p-3">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                <p className="text-sm">Awaiting finance recommendation</p>
+              </div>
+            )}
+          </Card>
+
           {/* Actions */}
           <Card>
             <h2 className="font-semibold text-gray-900 mb-3">Actions</h2>
             <div className="space-y-2">
               {request.status === 'pending' && (
+                <div className="text-center py-2">
+                  <AlertCircle className="w-5 h-5 text-yellow-400 mx-auto mb-1" />
+                  <p className="text-sm text-gray-500">
+                    Finance must review this request before you can act.
+                  </p>
+                </div>
+              )}
+
+              {(request.status === 'recommended' || request.status === 'not_recommended') && (
                 <>
                   <Button
                     onClick={handleApprove}
