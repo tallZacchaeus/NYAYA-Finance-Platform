@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { signOut } from 'next-auth/react';
+import { usePathname, useRouter } from 'next/navigation';
+import { getAuth, signOut as firebaseSignOut } from 'firebase/auth';
 import {
   LayoutDashboard,
   PlusCircle,
@@ -14,6 +14,7 @@ import {
   Bell,
   Settings,
 } from 'lucide-react';
+import { firebaseApp } from '@/lib/firebase';
 import { cn } from '@/lib/utils';
 
 interface NavItem {
@@ -66,6 +67,7 @@ const adminNav: NavItem[] = [
 
 export function Sidebar({ role, userName, userEmail }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
   const navItems = role === 'admin' ? adminNav : requesterNav;
 
   const isActive = (href: string) => {
@@ -73,6 +75,16 @@ export function Sidebar({ role, userName, userEmail }: SidebarProps) {
       return pathname === href;
     }
     return pathname.startsWith(href);
+  };
+
+  const handleSignOut = async () => {
+    try {
+      await fetch('/api/session/logout', { method: 'POST' });
+    } finally {
+      await firebaseSignOut(getAuth(firebaseApp)).catch(() => undefined);
+      router.replace('/login');
+      router.refresh();
+    }
   };
 
   return (
@@ -140,7 +152,7 @@ export function Sidebar({ role, userName, userEmail }: SidebarProps) {
             <p className="text-xs text-gray-500 truncate">{userEmail}</p>
           </div>
           <button
-            onClick={() => signOut({ callbackUrl: '/login' })}
+            onClick={handleSignOut}
             className="p-1.5 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
             title="Sign out"
           >

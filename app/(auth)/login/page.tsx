@@ -6,9 +6,10 @@ import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { signIn } from 'next-auth/react';
+import { getAuth, signInWithEmailAndPassword, signOut } from 'firebase/auth';
 import toast from 'react-hot-toast';
 import { Loader2, DollarSign } from 'lucide-react';
+import { firebaseApp } from '@/lib/firebase';
 
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address'),
@@ -16,6 +17,13 @@ const loginSchema = z.object({
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+type LoginResponse = {
+  message?: string;
+  redirectTo?: string;
+};
+
+const DEFAULT_POST_LOGIN_REDIRECT = '/dashboard';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -31,26 +39,42 @@ export default function LoginPage() {
 
   const onSubmit = async (data: LoginForm) => {
     setIsLoading(true);
+    const firebaseAuth = getAuth(firebaseApp);
+
     try {
-      const callbackUrl = '/dashboard';
-      const result = await signIn('credentials', {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-        callbackUrl,
+      const userCredential = await signInWithEmailAndPassword(
+        firebaseAuth,
+        data.email,
+        data.password
+      );
+      const idToken = await userCredential.user.getIdToken();
+
+      const response = await fetch('/api/session/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: data.email, idToken }),
       });
 
-      if (result?.error) {
-        toast.error('Invalid email or password. Please try again.');
-      } else if (result?.ok) {
-        toast.success('Logged in successfully!');
-        router.replace('/dashboard');
-        router.refresh();
-      } else {
-        toast.error('Unable to sign in. Please try again.');
+      const payload = (await response.json().catch(() => ({}))) as LoginResponse;
+
+      if (!response.ok) {
+        await signOut(firebaseAuth).catch(() => undefined);
+        toast.error(payload.message ?? 'Unable to sign in. Please try again.');
+        return;
       }
-    } catch {
-      toast.error('An unexpected error occurred. Please try again.');
+
+      toast.success('Logged in successfully!');
+      router.replace(payload.redirectTo ?? DEFAULT_POST_LOGIN_REDIRECT);
+      router.refresh();
+    } catch (error) {
+      await signOut(firebaseAuth).catch(() => undefined);
+
+      const message =
+        error instanceof Error && 'code' in error
+          ? 'Invalid email or password. Please try again.'
+          : 'An unexpected error occurred. Please try again.';
+
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

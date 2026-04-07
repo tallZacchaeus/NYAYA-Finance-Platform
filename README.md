@@ -1,6 +1,6 @@
 # NYAYA Finance Platform
 
-A financial request management platform built with Next.js 14, Firebase, and NextAuth.js for NYAYA Youth Affairs.
+A financial request management platform built with Next.js 14, Firebase, and Firebase session cookies for NYAYA Youth Affairs.
 
 ## Features
 
@@ -19,7 +19,7 @@ A financial request management platform built with Next.js 14, Firebase, and Nex
 |---|---|
 | Framework | Next.js 14 (App Router) |
 | Database | Firebase Firestore |
-| Auth | NextAuth.js v5 + Firebase Auth |
+| Auth | Firebase Auth + Firebase session cookies |
 | Storage | Firebase Cloud Storage |
 | Styling | Tailwind CSS |
 | Forms | React Hook Form + Zod |
@@ -58,10 +58,9 @@ Required variables:
 - `FIREBASE_CLIENT_EMAIL` - Service account email
 - `FIREBASE_PRIVATE_KEY` - Service account private key
 
-**NextAuth:**
+**Firebase Session Auth:**
 
-- `NEXTAUTH_SECRET` - Random secret (min 32 chars), generate with: `openssl rand -base64 32`
-- `NEXTAUTH_URL` - Your app URL (e.g. `http://localhost:3000`)
+- No separate auth environment variables are required beyond the Firebase client and admin credentials above.
 
 **Email:**
 
@@ -135,7 +134,7 @@ nyaya-finance-platform/
 │   │           ├── page.tsx        # All requests (admin)
 │   │           └── [id]/page.tsx   # Request detail with actions
 │   ├── api/
-│   │   ├── auth/[...nextauth]/     # NextAuth handler
+│   │   ├── session/                # Firebase session login/logout handlers
 │   │   ├── requests/               # CRUD + status endpoints
 │   │   ├── export/                 # CSV export
 │   │   └── notifications/          # Notification management
@@ -149,7 +148,7 @@ nyaya-finance-platform/
 │   ├── firebase.ts                 # Client-side Firebase init
 │   ├── firebase-admin.ts           # Admin SDK (server-side)
 │   ├── firestore.ts                # Firestore timestamp utilities
-│   ├── auth.ts                     # NextAuth config
+│   ├── auth.ts                     # Firebase session auth helper
 │   ├── email.ts                    # Resend email templates
 │   ├── types.ts                    # TypeScript interfaces
 │   └── utils.ts                    # Utility functions

@@ -1,114 +1,68 @@
-import NextAuth from 'next-auth';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { getAdminDb } from './firebase-admin';
-import { rateLimit } from './rate-limit';
+import { cookies } from 'next/headers';
+import { getAdminAuth, getAdminDb } from './firebase-admin';
 
-const DEFAULT_POST_LOGIN_REDIRECT = '/dashboard';
-
-/**
- * Verify email/password against Firebase Auth using the REST API.
- * Returns the Firebase UID on success, or null on failure.
- */
-async function verifyFirebasePassword(
-  email: string,
-  password: string
-): Promise<string | null> {
-  const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-  if (!apiKey) return null;
-
-  const res = await fetch(
-    `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${apiKey}`,
-    {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, returnSecureToken: true }),
-    }
-  );
-
-  if (!res.ok) return null;
-
-  const data = await res.json() as { localId?: string };
-  return data.localId ?? null;
+export interface AppSessionUser {
+  id: string;
+  email: string | null;
+  name: string | null;
+  role?: string;
 }
 
-export const { handlers, auth, signIn, signOut } = NextAuth({
-  providers: [
-    CredentialsProvider({
-      name: 'credentials',
-      credentials: {
-        email: { label: 'Email', type: 'email' },
-        password: { label: 'Password', type: 'password' },
+export interface AppSession {
+  user: AppSessionUser;
+}
+
+export const SESSION_COOKIE_NAME = 'nyaya_session';
+export const SESSION_DURATION_MS = 60 * 60 * 8 * 1000;
+
+const baseSessionCookieOptions = {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax' as const,
+  path: '/',
+};
+
+export function getSessionCookieOptions(maxAgeSeconds = SESSION_DURATION_MS / 1000) {
+  return {
+    ...baseSessionCookieOptions,
+    maxAge: maxAgeSeconds,
+  };
+}
+
+export function getClearedSessionCookieOptions() {
+  return {
+    ...baseSessionCookieOptions,
+    maxAge: 0,
+  };
+}
+
+export async function auth(): Promise<AppSession | null> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
+
+  if (!sessionCookie) {
+    return null;
+  }
+
+  try {
+    const decodedToken = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    const profileDoc = await getAdminDb().collection('users').doc(decodedToken.uid).get();
+
+    if (!profileDoc.exists) {
+      return null;
+    }
+
+    const profile = profileDoc.data() ?? {};
+
+    return {
+      user: {
+        id: decodedToken.uid,
+        email: (profile.email as string | undefined) ?? decodedToken.email ?? null,
+        name: (profile.name as string | undefined) ?? null,
+        role: (profile.role as string | undefined) ?? 'requester',
       },
-      async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) return null;
-
-        // 10 login attempts per email per 15 minutes
-        const key = `login:${String(credentials.email).toLowerCase()}`;
-        if (!rateLimit(key, 10, 15 * 60 * 1000)) return null;
-
-        const uid = await verifyFirebasePassword(
-          credentials.email as string,
-          credentials.password as string
-        );
-
-        if (!uid) return null;
-
-        const db = getAdminDb();
-        const profileDoc = await db.collection('users').doc(uid).get();
-
-        if (!profileDoc.exists) return null;
-
-        const profile = profileDoc.data()!;
-
-        return {
-          id: uid,
-          email: profile.email as string,
-          name: profile.name as string,
-          role: profile.role as string,
-        };
-      },
-    }),
-  ],
-  callbacks: {
-    async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as { role?: string }).role;
-      }
-      return token;
-    },
-    async session({ session, token }) {
-      if (token) {
-        session.user.id = token.id as string;
-        (session.user as { role?: string }).role = token.role as string;
-      }
-      return session;
-    },
-    async redirect({ url, baseUrl }) {
-      if (url.startsWith('/api/auth')) {
-        return baseUrl + DEFAULT_POST_LOGIN_REDIRECT;
-      }
-
-      if (url.startsWith('/')) {
-        return baseUrl + url;
-      }
-
-      try {
-        const parsedUrl = new URL(url);
-        if (parsedUrl.origin === baseUrl && !parsedUrl.pathname.startsWith('/api/auth')) {
-          return url;
-        }
-      } catch {}
-
-      return baseUrl + DEFAULT_POST_LOGIN_REDIRECT;
-    },
-  },
-  pages: {
-    signIn: '/login',
-  },
-  trustHost: true,
-  session: {
-    strategy: 'jwt',
-    maxAge: 60 * 60 * 8, // 8 hours — forces re-login so role changes take effect
-  },
-});
+    };
+  } catch {
+    return null;
+  }
+}
