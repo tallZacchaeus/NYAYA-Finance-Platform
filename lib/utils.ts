@@ -5,6 +5,8 @@ import { RequestStatus } from './types';
 
 const REQUEST_STATUS_META: Record<RequestStatus, { color: string; label: string }> = {
   pending: { color: 'bg-yellow-100 text-yellow-800', label: 'Pending Review' },
+  recommended: { color: 'bg-blue-100 text-blue-800', label: 'Recommended' },
+  not_recommended: { color: 'bg-orange-100 text-orange-800', label: 'Not Recommended' },
   approved: { color: 'bg-blue-100 text-blue-800', label: 'Approved' },
   rejected: { color: 'bg-red-100 text-red-800', label: 'Rejected' },
   paid: { color: 'bg-purple-100 text-purple-800', label: 'Paid' },

@@ -14,6 +14,8 @@ interface StatusBadgeProps {
 
 const dotColors: Record<RequestStatus, string> = {
   pending: 'bg-yellow-500',
+  recommended: 'bg-blue-500',
+  not_recommended: 'bg-orange-400',
   approved: 'bg-blue-500',
   rejected: 'bg-red-500',
   paid: 'bg-purple-500',
