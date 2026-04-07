@@ -15,15 +15,20 @@ import { firebaseApp } from '@/lib/firebase';
 const signupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Please enter a valid email address'),
+  designation: z.enum(['Team Lead', 'Unit Head', 'Pastor'], {
+    required_error: 'Please select your designation',
+  }),
+  department: z.string().min(1, 'Please select your unit / department'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),
-  department: z.string().optional(),
 }).refine((data) => data.password === data.confirmPassword, {
   message: 'Passwords do not match',
   path: ['confirmPassword'],
 });
 
 type SignupForm = z.infer<typeof signupSchema>;
+
+const DESIGNATIONS = ['Team Lead', 'Unit Head', 'Pastor'] as const;
 
 const DEPARTMENTS = [
   'Youth Affairs',
@@ -67,7 +72,8 @@ export default function SignupPage() {
         email: data.email,
         name: data.name,
         role: 'requester',
-        department: data.department || null,
+        designation: data.designation,
+        department: data.department,
         created_at: serverTimestamp(),
         updated_at: serverTimestamp(),
       });
@@ -133,17 +139,35 @@ export default function SignupPage() {
             </div>
 
             <div>
+              <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-1">
+                Designation
+              </label>
+              <select {...register('designation')} id="designation" className="input-field">
+                <option value="">Select designation</option>
+                {DESIGNATIONS.map((d) => (
+                  <option key={d} value={d}>{d}</option>
+                ))}
+              </select>
+              {errors.designation && (
+                <p className="mt-1 text-sm text-red-600">{errors.designation.message}</p>
+              )}
+            </div>
+
+            <div>
               <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                Department <span className="text-gray-400 font-normal">(optional)</span>
+                Unit / Department
               </label>
               <select {...register('department')} id="department" className="input-field">
-                <option value="">Select department</option>
+                <option value="">Select unit / department</option>
                 {DEPARTMENTS.map((dept) => (
                   <option key={dept} value={dept}>
                     {dept}
                   </option>
                 ))}
               </select>
+              {errors.department && (
+                <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
+              )}
             </div>
 
             <div>

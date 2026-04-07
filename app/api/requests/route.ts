@@ -121,6 +121,28 @@ export async function POST(request: Request) {
     }
 
     const db = getAdminDb();
+
+    // Enforce one-active-request rule: block if user has any pending/approved/paid request
+    const existingSnap = await db
+      .collection('requests')
+      .where('user_id', '==', user.id)
+      .orderBy('created_at', 'desc')
+      .get();
+
+    const hasActive = existingSnap.docs.some((doc) =>
+      ['pending', 'approved', 'paid'].includes(doc.data().status as string)
+    );
+
+    if (hasActive) {
+      return NextResponse.json(
+        {
+          message:
+            'You already have an active request. A new request cannot be submitted until your current request is completed.',
+        },
+        { status: 409 }
+      );
+    }
+
     const now = FieldValue.serverTimestamp();
 
     // Create the request document

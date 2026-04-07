@@ -1,5 +1,7 @@
 export type UserRole = 'requester' | 'admin';
 
+export type UserDesignation = 'Team Lead' | 'Unit Head' | 'Pastor';
+
 export type RequestStatus = 'pending' | 'approved' | 'rejected' | 'paid' | 'completed';
 
 export type RequestCategory = 'travel' | 'supplies' | 'events' | 'utilities' | 'personnel' | 'other';
@@ -9,6 +11,7 @@ export interface User {
   email: string;
   name: string;
   role: UserRole;
+  designation?: UserDesignation;
   department?: string;
   created_at: string;
   updated_at: string;

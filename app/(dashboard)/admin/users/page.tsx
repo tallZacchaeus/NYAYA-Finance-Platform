@@ -133,6 +133,7 @@ export default function AdminUsersPage() {
                 <tr className="border-b border-gray-200 bg-gray-50">
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Name</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Email</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-500 hidden sm:table-cell">Designation</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 hidden sm:table-cell">Department</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500 hidden md:table-cell">Joined</th>
                   <th className="text-left px-4 py-3 font-medium text-gray-500">Role</th>
@@ -144,6 +145,15 @@ export default function AdminUsersPage() {
                   <tr key={user.id} className="hover:bg-gray-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-gray-900">{user.name || '—'}</td>
                     <td className="px-4 py-3 text-gray-600">{user.email}</td>
+                    <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
+                      {user.designation ? (
+                        <span className="inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700">
+                          {user.designation}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-gray-500 hidden sm:table-cell">
                       {user.department || <span className="text-gray-300">—</span>}
                     </td>
