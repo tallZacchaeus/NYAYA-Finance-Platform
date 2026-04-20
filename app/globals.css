@@ -2,30 +2,221 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+/* ─── RCCG YAYA Finance — Brand Color System ─────────────────────────────── */
+:root {
+  /* Surfaces */
+  --bg-primary:   #0A0616;
+  --bg-card:      #13093B;
+  --bg-hover:     #1A0F4D;
+  --bg-subtle:    #1F1450;
+
+  /* Royal Purple */
+  --royal:        #2D1A73;
+  --royal-light:  #3D2590;
+  --royal-dark:   #13093B;
+
+  /* Imperial Gold */
+  --gold-deep:    #8B6A28;
+  --gold:         #BB913B;
+  --gold-bright:  #D4A843;
+
+  /* Forest Green */
+  --forest-deep:  #0F4E1E;
+  --forest:       #146428;
+  --forest-light: #5EBE7C;
+  --forest-bright:#8EDC9E;
+
+  /* Text */
+  --text-primary: #F5E8D3;
+  --text-muted:   #A89FB8;
+
+  /* Semantic */
+  --border:       #2D1A73;
+  --border-hover: #BB913B;
+  --border-error: #F87171;
+  --border-success:#146428;
+}
+
+/* ─── Font utilities ─────────────────────────────────────────────────────── */
+@layer utilities {
+  .font-display {
+    font-family: var(--font-display), 'Outfit', system-ui, sans-serif;
+    font-weight: 700;
+    letter-spacing: -0.02em;
   }
-  body {
-    @apply bg-gray-50 text-gray-900;
+  .font-body {
+    font-family: var(--font-body), -apple-system, sans-serif;
   }
 }
 
+/* ─── Base ───────────────────────────────────────────────────────────────── */
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  body {
+    font-family: var(--font-body), -apple-system, sans-serif;
+    background: #0A0616;
+    color: #F5E8D3;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background: rgba(187, 145, 59, 0.3);
+    color: #D4A843;
+  }
+
+  ::-webkit-scrollbar       { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb {
+    background: #2D1A73;
+    border-radius: 99px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #BB913B; }
+}
+
+/* ─── Keyframes ──────────────────────────────────────────────────────────── */
+@keyframes fadeSlideIn {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.5; transform: scale(0.85); }
+}
+
+/* ─── Components ─────────────────────────────────────────────────────────── */
 @layer components {
-  .btn-primary {
-    @apply bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+
+  /* ── Buttons ─────────────────────────────────────────────────────────── */
+  .btn-gold {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-body font-semibold text-sm
+           transition-all duration-150;
+    background: #BB913B;
+    color: #1A0F4D;
+    border: 1px solid #BB913B;
   }
-  .btn-secondary {
-    @apply bg-white hover:bg-gray-50 text-gray-700 font-medium py-2 px-4 rounded-lg border border-gray-300 transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+  .btn-gold:hover {
+    background: #D4A843;
+    border-color: #D4A843;
+    transform: translateY(-2px);
   }
+  .btn-gold:disabled {
+    @apply opacity-50 cursor-not-allowed;
+    transform: none;
+  }
+
+  .btn-outline-gold {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-body font-semibold text-sm
+           transition-all duration-150;
+    color: #BB913B;
+    border: 1px solid #BB913B;
+    background: #13093B;
+  }
+  .btn-outline-gold:hover {
+    background: #BB913B;
+    color: #1A0F4D;
+    transform: translateY(-2px);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-body font-semibold text-sm
+           transition-all duration-150;
+    color: #A89FB8;
+    border: 1px solid #2D1A73;
+    background: transparent;
+  }
+  .btn-ghost:hover {
+    background: #1F1450;
+    color: #F5E8D3;
+    transform: translateY(-2px);
+  }
+
   .btn-danger {
-    @apply bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-body font-semibold text-sm
+           transition-all duration-150;
+    color: #F87171;
+    border: 1px solid #F87171;
+    background: transparent;
   }
-  .input-field {
-    @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  .btn-danger:hover {
+    background: #3D1F1F;
+    transform: translateY(-2px);
   }
+
+  /* Legacy aliases */
+  .btn-primary   { @apply btn-gold; }
+  .btn-secondary { @apply btn-outline-gold; }
+
+  /* ── Cards ───────────────────────────────────────────────────────────── */
   .card {
-    @apply bg-white rounded-xl shadow-sm border border-gray-200 p-6;
+    background: #13093B;
+    border: 1px solid #2D1A73;
+    @apply rounded-xl p-6 transition-all duration-200;
+  }
+  .card:hover {
+    border-color: #BB913B;
+    transform: translateY(-2px);
+  }
+  .card-header {
+    background: #1A0F4D;
+    border-bottom: 1px solid #2D1A73;
+    @apply rounded-t-xl px-6 py-4;
+  }
+  .card-elevated {
+    background: #13093B;
+    border: 1px solid #2D1A73;
+    @apply rounded-xl p-6 transition-all duration-200;
+  }
+
+  /* ── Inputs ──────────────────────────────────────────────────────────── */
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg font-body text-sm transition-all duration-150;
+    background: #13093B;
+    border: 1px solid #2D1A73;
+    color: #F5E8D3;
+    outline: none;
+  }
+  .input-field::placeholder { color: #A89FB8; }
+  .input-field:focus {
+    border-color: #BB913B;
+    background: #1A0F4D;
+  }
+  .input-field:hover:not(:focus) {
+    border-color: #3D2590;
+  }
+
+  /* ── Modals ──────────────────────────────────────────────────────────── */
+  .modal-overlay {
+    background: rgba(0,0,0,0.6);
+  }
+  .modal-panel {
+    background: #13093B;
+    border: 1px solid #2D1A73;
+    @apply rounded-xl;
+  }
+
+  /* ── Typography ──────────────────────────────────────────────────────── */
+  .section-title { @apply font-display text-xl; color: #F5E8D3; }
+  .page-title    { @apply font-display text-2xl; color: #F5E8D3; }
+  .amount        { font-family: var(--font-display), Georgia, serif; color: #D4A843; }
+
+  /* ── Dividers ────────────────────────────────────────────────────────── */
+  .divider { border-color: #2D1A73; }
+
+  /* ── Pulse dot (pending) ─────────────────────────────────────────────── */
+  .pulse-dot {
+    @apply inline-block w-1.5 h-1.5 rounded-full flex-shrink-0;
+    background: #FBBF24;
+    animation: pulseDot 2s ease-in-out infinite;
+  }
+
+  /* ── Nav active indicator ────────────────────────────────────────────── */
+  .nav-active-bar {
+    @apply absolute left-0 top-2 bottom-2 w-[3px] rounded-full;
+    background: #BB913B;
   }
 }

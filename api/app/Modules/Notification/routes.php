@@ -1,0 +1,11 @@
+<?php
+
+use App\Modules\Notification\Controllers\NotificationController;
+use Illuminate\Support\Facades\Route;
+
+Route::middleware(['auth:sanctum', 'active'])->prefix('notifications')->group(function () {
+    Route::get('/', [NotificationController::class, 'index']);
+    Route::get('unread-count', [NotificationController::class, 'unreadCount']);
+    Route::patch('read-all', [NotificationController::class, 'markAllRead']);
+    Route::patch('{id}/read', [NotificationController::class, 'markRead']);
+});

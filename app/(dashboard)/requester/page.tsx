@@ -1,238 +1,174 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '@/lib/auth';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { serializeDoc } from '@/lib/firestore';
-import { Request, RequestCategory, RequestStatus } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
-import { Header } from '@/components/layout/header';
-import { RequestTable } from '@/components/requests/request-table';
-import { StatCard } from '@/components/ui/card';
-import { PlusCircle, ClipboardList, CheckCircle, Clock, XCircle, AlertCircle } from 'lucide-react';
+import { auth, toFrontendRole } from '@/lib/auth';
+import { serverApi } from '@/lib/api-server';
+import type { FinanceRequest } from '@/lib/api-client';
+import {
+  PlusCircle, ClipboardList, CheckCircle, Clock, XCircle, AlertCircle,
+} from 'lucide-react';
+import { StaggerList, StaggerItem } from '@/components/ui/animate-in';
+import { StatCard } from '@/components/ui/stat-card';
+import { StatusBadge } from '@/components/ui/status-badge';
+import { NairaAmount } from '@/components/ui/naira-amount';
+import { EmptyState } from '@/components/ui/empty-state';
+import { GoldButton } from '@/components/ui/gold-button';
 
-const REQUEST_STATUSES: RequestStatus[] = [
-  'pending',
-  'approved',
-  'rejected',
-  'paid',
-  'completed',
-];
-
-const REQUEST_CATEGORIES: RequestCategory[] = [
-  'travel',
-  'supplies',
-  'events',
-  'utilities',
-  'personnel',
-  'other',
-];
-
-function getSafeString(value: unknown, fallback = ''): string {
-  return typeof value === 'string' ? value : fallback;
-}
-
-function getSafeNumber(value: unknown, fallback = 0): number {
-  if (typeof value === 'number' && Number.isFinite(value)) {
-    return value;
-  }
-
-  const parsed = Number(value);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
-function normalizeRequest(raw: Record<string, unknown>): Request {
-  const status = REQUEST_STATUSES.includes(raw.status as RequestStatus)
-    ? (raw.status as RequestStatus)
-    : 'pending';
-  const category = REQUEST_CATEGORIES.includes(raw.category as RequestCategory)
-    ? (raw.category as RequestCategory)
-    : 'other';
-
-  return {
-    id: getSafeString(raw.id, 'unknown-request'),
-    user_id: getSafeString(raw.user_id),
-    amount: getSafeNumber(raw.amount),
-    purpose: getSafeString(raw.purpose, 'Untitled request'),
-    category,
-    description: typeof raw.description === 'string' ? raw.description : undefined,
-    status,
-    rejection_reason:
-      typeof raw.rejection_reason === 'string' ? raw.rejection_reason : undefined,
-    reviewed_by: typeof raw.reviewed_by === 'string' ? raw.reviewed_by : undefined,
-    reviewed_at: typeof raw.reviewed_at === 'string' ? raw.reviewed_at : undefined,
-    paid_at: typeof raw.paid_at === 'string' ? raw.paid_at : undefined,
-    created_at: getSafeString(raw.created_at),
-    updated_at: getSafeString(raw.updated_at),
-    user:
-      raw.user && typeof raw.user === 'object'
-        ? (raw.user as Request['user'])
-        : undefined,
-  };
-}
-
-function getFirstName(name: string | null | undefined) {
-  if (typeof name !== 'string') {
-    return 'there';
-  }
-
-  const trimmedName = name.trim();
-  if (!trimmedName) {
-    return 'there';
-  }
-
-  return trimmedName.split(/\s+/)[0] || 'there';
+function getFirstName(name: string | null | undefined): string {
+  if (!name?.trim()) return 'there';
+  return name.trim().split(/\s+/)[0] || 'there';
 }
 
 export default async function RequesterDashboard() {
   const session = await auth();
   if (!session?.user) redirect('/login');
 
-  const user = session.user as { id: string; name?: string | null; role?: string };
-  const role = user.role === 'admin' ? 'admin' : 'requester';
-  if (role === 'admin') redirect('/admin');
+  const role = toFrontendRole(session.user.role);
+  if (role === 'admin')   redirect('/admin');
+  if (role === 'finance') redirect('/finance');
 
-  let safeRequests: Request[] = [];
+  const user = session.user;
+
+  let requests: FinanceRequest[] = [];
   let loadError: string | null = null;
 
   try {
-    const db = getAdminDb();
-    const requestsSnap = await db
-      .collection('requests')
-      .where('user_id', '==', user.id)
-      .orderBy('created_at', 'desc')
-      .get();
-
-    safeRequests = requestsSnap.docs.map((docSnap) =>
-      normalizeRequest(serializeDoc(docSnap.id, docSnap.data()))
-    );
-  } catch (error) {
-    console.error('RequesterDashboard load error:', error);
-    loadError = 'We could not load your requests right now. Please try again shortly.';
+    const res = await serverApi.requests.list({ per_page: 100 });
+    requests = res?.data ?? [];
+  } catch {
+    loadError = 'Could not load your requests right now. Please try again shortly.';
   }
 
-  const stats = {
-    total: safeRequests.length,
-    pending: safeRequests.filter((r) => r.status === 'pending').length,
-    approved: safeRequests.filter((r) =>
-      ['approved', 'paid', 'completed'].includes(r.status)
-    ).length,
-    rejected: safeRequests.filter((r) => r.status === 'rejected').length,
-    totalAmount: safeRequests
-      .filter((r) => ['approved', 'paid', 'completed'].includes(r.status))
-      .reduce((sum, r) => sum + r.amount, 0),
-  };
+  const pending  = requests.filter(r => r.status === 'submitted' || r.status === 'finance_reviewed');
+  const approved = requests.filter(r => ['satgo_approved','partial_payment','paid','receipted','completed'].includes(r.status));
+  const rejected = requests.filter(r => r.status === 'finance_rejected' || r.status === 'satgo_rejected');
+  const approvedAmt = approved.reduce((s, r) => s + r.amount, 0);
+
+  const tableHeaders = ['Reference', 'Title', 'Amount', 'Status', ''];
 
   return (
-    <div>
-      <Header title="My Requests" userId={user.id} />
-
-      <div className="p-4 sm:p-6 space-y-6">
-        {/* Welcome banner */}
-        <div className="bg-gradient-to-r from-blue-600 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-semibold">
-                Welcome back, {getFirstName(user.name)}!
-              </h2>
-              <p className="text-blue-100 mt-1 text-sm">
-                Track and manage your financial requests from here.
-              </p>
-            </div>
-            <Link
-              href="/requester/new-request"
-              className="self-start sm:self-auto flex items-center gap-2 bg-white text-blue-700 px-4 py-2 rounded-lg text-sm font-medium hover:bg-blue-50 transition-colors shadow-sm"
-            >
-              <PlusCircle className="w-4 h-4" />
-              New Request
-            </Link>
-          </div>
-        </div>
-
-        {loadError && (
-          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-amber-800 flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 mt-0.5 shrink-0" />
-            <div>
-              <p className="font-medium">Requests unavailable</p>
-              <p className="text-sm mt-1">{loadError}</p>
-            </div>
-          </div>
-        )}
-
-        {/* Stats */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard
-            title="Total Requests"
-            value={stats.total}
-            icon={<ClipboardList className="w-5 h-5" />}
-            color="blue"
-          />
-          <StatCard
-            title="Pending Review"
-            value={stats.pending}
-            icon={<Clock className="w-5 h-5" />}
-            color="yellow"
-          />
-          <StatCard
-            title="Approved"
-            value={stats.approved}
-            icon={<CheckCircle className="w-5 h-5" />}
-            color="green"
-          />
-          <StatCard
-            title="Rejected"
-            value={stats.rejected}
-            icon={<XCircle className="w-5 h-5" />}
-            color="red"
-          />
-        </div>
-
-        {/* Approved total */}
-        {stats.totalAmount > 0 && (
-          <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-            <p className="text-sm text-green-700">
-              <span className="font-semibold">Total Approved Amount:</span>{' '}
-              {formatCurrency(stats.totalAmount)}
+    <div className="p-5 sm:p-7 space-y-7">
+      {/* Welcome banner */}
+      <div className="relative rounded-2xl overflow-hidden p-6 bg-[#13093B] border border-[#2D1A73]">
+        <div className="absolute top-2 right-8 w-20 h-20 rounded-full bg-[#1F1450]  pointer-events-none" />
+        <div className="relative z-10 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="font-display text-2xl text-[#F5E8D3]">
+              Welcome back, {getFirstName(user.name)}
+            </h1>
+            <p className="font-body text-sm text-[#A89FB8] mt-1">
+              Track and manage your financial requests from here.
             </p>
           </div>
-        )}
+          <Link href="/requester/new-request">
+            <GoldButton className="gap-2 whitespace-nowrap">
+              <PlusCircle className="w-4 h-4" />
+              New Request
+            </GoldButton>
+          </Link>
+        </div>
+      </div>
 
-        {/* Requests table */}
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">Request History</h2>
-            {safeRequests.length > 0 && (
-              <Link
-                href="/requester/new-request"
-                className="flex items-center gap-1.5 text-sm text-blue-600 hover:text-blue-700 font-medium"
-              >
-                <PlusCircle className="w-4 h-4" />
-                New Request
-              </Link>
-            )}
+      {/* Error alert */}
+      {loadError && (
+        <div className="rounded-xl p-4 bg-[rgba(251,191,36,0.06)] border border-[rgba(251,191,36,0.18)] flex items-start gap-3">
+          <AlertCircle className="w-4 h-4 text-[#FBBF24] shrink-0 mt-0.5" />
+          <div>
+            <p className="font-body text-sm font-medium text-[#A89FB8]">Requests unavailable</p>
+            <p className="font-body text-xs text-[#A89FB8] mt-0.5">{loadError}</p>
           </div>
+        </div>
+      )}
 
-          {safeRequests.length === 0 ? (
-            <div className="bg-white rounded-xl border border-gray-200 p-12 text-center">
-              <div className="w-12 h-12 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-3">
-                <ClipboardList className="w-6 h-6 text-gray-400" />
-              </div>
-              <h3 className="font-semibold text-gray-900 mb-1">No requests yet</h3>
-              <p className="text-gray-500 text-sm mb-4">
-                Submit your first financial request to get started.
-              </p>
-              <Link href="/requester/new-request" className="btn-primary inline-flex items-center gap-2">
-                <PlusCircle className="w-4 h-4" />
-                Submit a Request
-              </Link>
-            </div>
-          ) : (
-            <RequestTable
-              requests={safeRequests}
-              showRequester={false}
-              linkBase="/requester/requests"
-            />
+      {/* Stat cards */}
+      <StaggerList className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StaggerItem>
+          <StatCard title="Total Requests" value={requests.length} icon={<ClipboardList className="w-4 h-4" />} accentColor="#D4A843" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Pending Review" value={pending.length}  icon={<Clock       className="w-4 h-4" />} accentColor="#FBBF24" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Approved"       value={approved.length} icon={<CheckCircle className="w-4 h-4" />} accentColor="#34D399" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Rejected"       value={rejected.length} icon={<XCircle     className="w-4 h-4" />} accentColor="#F87171" />
+        </StaggerItem>
+      </StaggerList>
+
+      {/* Approved value banner */}
+      {approvedAmt > 0 && (
+        <div className="rounded-xl p-4 flex items-center gap-3 bg-[rgba(52,211,153,0.05)] border border-[rgba(52,211,153,0.15)]">
+          <div className="w-8 h-8 rounded-lg bg-[rgba(52,211,153,0.12)] flex items-center justify-center text-[#34D399]">
+            <CheckCircle className="w-4 h-4" />
+          </div>
+          <div>
+            <p className="font-body text-xs text-[#A89FB8]">Total approved amount</p>
+            <NairaAmount amount={approvedAmt} compact className="text-base" />
+          </div>
+        </div>
+      )}
+
+      {/* Request history */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="font-display text-lg text-[#F5E8D3]">Request History</h2>
+          {requests.length > 0 && (
+            <Link href="/requester/new-request" className="font-body text-xs text-[#D4A843] hover:opacity-80 transition-opacity flex items-center gap-1">
+              <PlusCircle className="w-3.5 h-3.5" />
+              New Request
+            </Link>
           )}
         </div>
+
+        {requests.length === 0 ? (
+          <div className="rounded-xl border border-[#2D1A73] bg-[#13093B]">
+            <EmptyState
+              title="No requests yet"
+              description="Submit your first financial request to get started."
+              icon={<ClipboardList className="w-7 h-7" />}
+              action={
+                <Link href="/requester/new-request">
+                  <GoldButton className="gap-2">
+                    <PlusCircle className="w-4 h-4" />
+                    Submit a Request
+                  </GoldButton>
+                </Link>
+              }
+            />
+          </div>
+        ) : (
+          <div className="rounded-xl overflow-hidden border border-[#2D1A73]">
+            <table className="w-full text-sm font-body">
+              <thead>
+                <tr className="bg-[#13093B] border-b border-[#2D1A73]">
+                  {tableHeaders.map(h => (
+                    <th key={h} className="px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider text-[#A89FB8]">{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {requests.slice(0, 15).map((r) => (
+                  <tr key={r.id} className="border-b border-[#1A0F4D] last:border-0 hover:bg-[#13093B] transition-colors">
+                    <td className="px-4 py-3.5 font-mono text-xs text-[#D4A843]">{r.reference}</td>
+                    <td className="px-4 py-3.5 text-[#A89FB8] max-w-[200px] truncate">{r.title}</td>
+                    <td className="px-4 py-3.5">
+                      <NairaAmount amount={r.amount} compact className="text-sm" />
+                    </td>
+                    <td className="px-4 py-3.5"><StatusBadge status={r.status} /></td>
+                    <td className="px-4 py-3.5 text-right">
+                      <Link
+                        href={`/my-requests/requests/${r.id}`}
+                        className="font-body text-xs text-[#A89FB8] hover:text-[#D4A843] transition-colors"
+                      >
+                        View →
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </div>
   );

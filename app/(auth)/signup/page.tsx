@@ -1,227 +1,130 @@
 'use client';
 
 import { useState } from 'react';
-import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from 'react-hot-toast';
-import { Loader2, DollarSign } from 'lucide-react';
-import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { getFirestore, doc, setDoc, serverTimestamp } from 'firebase/firestore';
-import { firebaseApp } from '@/lib/firebase';
+import { Loader2, Eye, EyeOff } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { api, ApiError } from '@/lib/api-client';
 
-const signupSchema = z.object({
-  name: z.string().min(2, 'Name must be at least 2 characters'),
-  email: z.string().email('Please enter a valid email address'),
-  designation: z.enum(['Team Lead', 'Unit Head', 'Pastor'], {
-    required_error: 'Please select your designation',
-  }),
-  department: z.string().min(1, 'Please select your unit / department'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string(),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+const signupSchema = z
+  .object({
+    name:                  z.string().min(2, 'Name must be at least 2 characters'),
+    email:                 z.string().email('Please enter a valid email address'),
+    password:              z.string().min(8, 'Password must be at least 8 characters'),
+    password_confirmation: z.string(),
+  })
+  .refine((d) => d.password === d.password_confirmation, {
+    message: 'Passwords do not match',
+    path: ['password_confirmation'],
+  });
 
 type SignupForm = z.infer<typeof signupSchema>;
 
-const DESIGNATIONS = ['Team Lead', 'Unit Head', 'Pastor'] as const;
-
-const DEPARTMENTS = [
-  'Youth Affairs',
-  'Finance',
-  'Administration',
-  'Programs',
-  'Communications',
-  'Operations',
-  'Other',
-];
-
 export default function SignupPage() {
-  const router = useRouter();
   const [isLoading, setIsLoading] = useState(false);
+  const [showPass,  setShowPass]  = useState(false);
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<SignupForm>({
+  const { register, handleSubmit, setError, formState: { errors } } = useForm<SignupForm>({
     resolver: zodResolver(signupSchema),
   });
 
   const onSubmit = async (data: SignupForm) => {
     setIsLoading(true);
     try {
-      const auth = getAuth(firebaseApp);
-      const db = getFirestore(firebaseApp);
-
-      // Create Firebase Auth user
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        data.email,
-        data.password
-      );
-
-      const uid = userCredential.user.uid;
-
-      // Create user profile in Firestore
-      await setDoc(doc(db, 'users', uid), {
-        email: data.email,
-        name: data.name,
-        role: 'requester',
-        designation: data.designation,
-        department: data.department,
-        created_at: serverTimestamp(),
-        updated_at: serverTimestamp(),
-      });
-
-      toast.success('Account created successfully! Please sign in.');
-      router.push('/login');
-    } catch (err: unknown) {
-      const message =
-        err instanceof Error ? err.message : 'An unexpected error occurred.';
-      toast.error(message);
+      await api.auth.register(data);
+      toast.success('Account created! Redirecting…');
+      window.location.href = '/my-requests';
+    } catch (err) {
+      if (err instanceof ApiError) {
+        if (err.errors) {
+          for (const [field, messages] of Object.entries(err.errors)) {
+            setError(field as keyof SignupForm, { message: messages[0] });
+          }
+        } else {
+          toast.error(err.message ?? 'Registration failed.');
+        }
+      } else {
+        toast.error('An unexpected error occurred.');
+      }
     } finally {
       setIsLoading(false);
     }
   };
 
+  const fields = [
+    { name: 'name'                  as const, label: 'Full name',        type: 'text',     placeholder: 'John Doe',         auto: 'name' },
+    { name: 'email'                 as const, label: 'Email address',    type: 'email',    placeholder: 'you@rccg.org',     auto: 'email' },
+    { name: 'password'              as const, label: 'Password',         type: 'password', placeholder: '••••••••',         auto: 'new-password' },
+    { name: 'password_confirmation' as const, label: 'Confirm password', type: 'password', placeholder: '••••••••',         auto: 'new-password' },
+  ];
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 px-4 py-8">
-      <div className="w-full max-w-md">
-        {/* Logo */}
+    <div className="min-h-screen flex items-center justify-center px-4 py-10 overflow-hidden relative bg-[#0A0616]">
+
+      <motion.div
+        className="w-full max-w-sm relative z-10"
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+      >
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg">
-            <DollarSign className="w-8 h-8 text-white" />
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4 font-display text-3xl font-bold bg-gold text-[#0A0616]">
+            Y
           </div>
-          <h1 className="text-2xl font-bold text-gray-900">NYAYA Finance</h1>
-          <p className="text-gray-500 mt-1">Create your account</p>
+          <h1 className="font-display text-2xl text-[#F5E8D3]">Create Account</h1>
+          <p className="font-body text-sm mt-1 text-[#A89FB8]">Join RCCG YAYA Finance Portal</p>
         </div>
 
-        {/* Form Card */}
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-                Full name
-              </label>
-              <input
-                {...register('name')}
-                id="name"
-                type="text"
-                autoComplete="name"
-                placeholder="John Doe"
-                className="input-field"
-              />
-              {errors.name && (
-                <p className="mt-1 text-sm text-red-600">{errors.name.message}</p>
-              )}
-            </div>
+        <div className="rounded-2xl p-7 bg-[#13093B] border border-[#2D1A73] ">
+          <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            {fields.map((f) => (
+              <div key={f.name}>
+                <label className="block font-body text-xs font-medium mb-1.5 text-[#A89FB8]">
+                  {f.label}
+                </label>
+                <div className="relative">
+                  <input
+                    {...register(f.name)}
+                    type={f.type === 'password' ? (showPass ? 'text' : 'password') : f.type}
+                    autoComplete={f.auto}
+                    placeholder={f.placeholder}
+                    className="input-field"
+                  />
+                  {f.type === 'password' && f.name === 'password' && (
+                    <button
+                      type="button"
+                      onClick={() => setShowPass(!showPass)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[#A89FB8]"
+                      aria-label={showPass ? 'Hide password' : 'Show password'}
+                    >
+                      {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  )}
+                </div>
+                {errors[f.name] && (
+                  <p className="mt-1.5 text-xs font-body text-[#F87171]">{errors[f.name]?.message}</p>
+                )}
+              </div>
+            ))}
 
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                Email address
-              </label>
-              <input
-                {...register('email')}
-                id="email"
-                type="email"
-                autoComplete="email"
-                placeholder="you@example.com"
-                className="input-field"
-              />
-              {errors.email && (
-                <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="designation" className="block text-sm font-medium text-gray-700 mb-1">
-                Designation
-              </label>
-              <select {...register('designation')} id="designation" className="input-field">
-                <option value="">Select designation</option>
-                {DESIGNATIONS.map((d) => (
-                  <option key={d} value={d}>{d}</option>
-                ))}
-              </select>
-              {errors.designation && (
-                <p className="mt-1 text-sm text-red-600">{errors.designation.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="department" className="block text-sm font-medium text-gray-700 mb-1">
-                Unit / Department
-              </label>
-              <select {...register('department')} id="department" className="input-field">
-                <option value="">Select unit / department</option>
-                {DEPARTMENTS.map((dept) => (
-                  <option key={dept} value={dept}>
-                    {dept}
-                  </option>
-                ))}
-              </select>
-              {errors.department && (
-                <p className="mt-1 text-sm text-red-600">{errors.department.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-                Password
-              </label>
-              <input
-                {...register('password')}
-                id="password"
-                type="password"
-                autoComplete="new-password"
-                placeholder="••••••••"
-                className="input-field"
-              />
-              {errors.password && (
-                <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-1">
-                Confirm password
-              </label>
-              <input
-                {...register('confirmPassword')}
-                id="confirmPassword"
-                type="password"
-                autoComplete="new-password"
-                placeholder="••••••••"
-                className="input-field"
-              />
-              {errors.confirmPassword && (
-                <p className="mt-1 text-sm text-red-600">{errors.confirmPassword.message}</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="btn-primary w-full flex items-center justify-center gap-2"
-            >
+            <button type="submit" disabled={isLoading} className="btn-gold w-full mt-2">
               {isLoading && <Loader2 className="w-4 h-4 animate-spin" />}
-              {isLoading ? 'Creating account...' : 'Create account'}
+              {isLoading ? 'Creating account…' : 'Create account'}
             </button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-gray-500">
+          <p className="mt-6 text-center font-body text-sm text-[#A89FB8]">
             Already have an account?{' '}
-            <Link href="/login" className="text-blue-600 hover:text-blue-700 font-medium">
+            <Link href="/login" className="text-[#D4A843] font-medium hover:opacity-80 transition-opacity">
               Sign in
             </Link>
-          </div>
+          </p>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }

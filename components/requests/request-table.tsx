@@ -3,29 +3,31 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { ChevronUp, ChevronDown, Eye } from 'lucide-react';
-import { Request, RequestStatus } from '@/lib/types';
+import type { FinanceRequest } from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { StatusBadge } from './status-badge';
 import { cn } from '@/lib/utils';
 
-type SortField = 'created_at' | 'amount' | 'status' | 'purpose';
+type SortField = 'created_at' | 'amount' | 'status' | 'title';
 type SortDir = 'asc' | 'desc';
 
 interface RequestTableProps {
-  requests: Request[];
+  requests: FinanceRequest[];
   showRequester?: boolean;
-  onStatusFilter?: (status: RequestStatus | 'all') => void;
-  activeFilter?: RequestStatus | 'all';
+  onStatusFilter?: (status: FinanceRequest['status'] | 'all') => void;
+  activeFilter?: FinanceRequest['status'] | 'all';
   linkBase?: string;
 }
 
-const STATUS_FILTERS: { value: RequestStatus | 'all'; label: string }[] = [
-  { value: 'all', label: 'All' },
-  { value: 'pending', label: 'Pending' },
-  { value: 'approved', label: 'Approved' },
-  { value: 'rejected', label: 'Rejected' },
-  { value: 'paid', label: 'Paid' },
-  { value: 'completed', label: 'Completed' },
+const STATUS_FILTERS: { value: FinanceRequest['status'] | 'all'; label: string }[] = [
+  { value: 'all',              label: 'All' },
+  { value: 'submitted',        label: 'Submitted' },
+  { value: 'finance_reviewed', label: 'Finance Reviewed' },
+  { value: 'satgo_approved',   label: 'SATGO Approved' },
+  { value: 'paid',             label: 'Paid' },
+  { value: 'completed',        label: 'Completed' },
+  { value: 'finance_rejected', label: 'Finance Rejected' },
+  { value: 'satgo_rejected',   label: 'SATGO Rejected' },
 ];
 
 export function RequestTable({
@@ -48,15 +50,8 @@ export function RequestTable({
   };
 
   const sorted = [...requests].sort((a, b) => {
-    let aVal: string | number = a[sortField] as string | number;
-    let bVal: string | number = b[sortField] as string | number;
-    if (sortField === 'amount') {
-      aVal = Number(aVal);
-      bVal = Number(bVal);
-    } else {
-      aVal = String(aVal);
-      bVal = String(bVal);
-    }
+    let aVal: string | number = sortField === 'amount' ? a.amount : String(a[sortField] ?? '');
+    let bVal: string | number = sortField === 'amount' ? b.amount : String(b[sortField] ?? '');
     if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
     if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
     return 0;
@@ -68,6 +63,9 @@ export function RequestTable({
       ? <ChevronUp className="ml-1 w-3 h-3 inline text-blue-600" />
       : <ChevronDown className="ml-1 w-3 h-3 inline text-blue-600" />;
   };
+
+  const requestTypeLabel = (type: FinanceRequest['request_type']) =>
+    type?.name ?? '—';
 
   return (
     <div>
@@ -107,16 +105,19 @@ export function RequestTable({
                 className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-blue-200 hover:shadow-sm transition-all"
               >
                 <div className="flex items-start justify-between gap-2 mb-2">
-                  <p className="font-medium text-gray-900 text-sm leading-snug line-clamp-2">
-                    {request.purpose}
-                  </p>
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm leading-snug line-clamp-2">
+                      {request.title}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-0.5 font-mono">{request.reference}</p>
+                  </div>
                   <StatusBadge status={request.status} />
                 </div>
 
-                {showRequester && request.user && (
+                {showRequester && (
                   <p className="text-xs text-gray-500 mb-2">
-                    {request.user.name}
-                    {request.user.department ? ` · ${request.user.department}` : ''}
+                    {request.requester.name}
+                    {request.department ? ` · ${request.department.name}` : ''}
                   </p>
                 )}
 
@@ -124,8 +125,8 @@ export function RequestTable({
                   <span className="text-base font-bold text-gray-900">
                     {formatCurrency(request.amount)}
                   </span>
-                  <span className="text-xs text-gray-400 capitalize">
-                    {request.category} · {formatDate(request.created_at)}
+                  <span className="text-xs text-gray-400">
+                    {requestTypeLabel(request.request_type)} · {formatDate(request.created_at)}
                   </span>
                 </div>
               </Link>
@@ -142,9 +143,9 @@ export function RequestTable({
                   )}
                   <th
                     className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer hover:text-gray-900"
-                    onClick={() => handleSort('purpose')}
+                    onClick={() => handleSort('title')}
                   >
-                    Purpose <SortIcon field="purpose" />
+                    Title <SortIcon field="title" />
                   </th>
                   <th
                     className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer hover:text-gray-900"
@@ -152,7 +153,7 @@ export function RequestTable({
                   >
                     Amount <SortIcon field="amount" />
                   </th>
-                  <th className="text-left px-4 py-3 font-medium text-gray-600">Category</th>
+                  <th className="text-left px-4 py-3 font-medium text-gray-600">Type</th>
                   <th
                     className="text-left px-4 py-3 font-medium text-gray-600 cursor-pointer hover:text-gray-900"
                     onClick={() => handleSort('status')}
@@ -173,17 +174,18 @@ export function RequestTable({
                   <tr key={request.id} className="hover:bg-gray-50 transition-colors">
                     {showRequester && (
                       <td className="px-4 py-3">
-                        <p className="font-medium text-gray-900">{request.user?.name || 'Unknown'}</p>
-                        <p className="text-xs text-gray-400">{request.user?.department || ''}</p>
+                        <p className="font-medium text-gray-900">{request.requester.name}</p>
+                        <p className="text-xs text-gray-400">{request.department.name}</p>
                       </td>
                     )}
                     <td className="px-4 py-3">
-                      <p className="font-medium text-gray-900 max-w-xs truncate">{request.purpose}</p>
+                      <p className="font-medium text-gray-900 max-w-xs truncate">{request.title}</p>
+                      <p className="text-xs text-gray-400 font-mono">{request.reference}</p>
                     </td>
                     <td className="px-4 py-3 font-semibold text-gray-900">
                       {formatCurrency(request.amount)}
                     </td>
-                    <td className="px-4 py-3 capitalize text-gray-600">{request.category}</td>
+                    <td className="px-4 py-3 text-gray-600">{requestTypeLabel(request.request_type)}</td>
                     <td className="px-4 py-3">
                       <StatusBadge status={request.status} />
                     </td>

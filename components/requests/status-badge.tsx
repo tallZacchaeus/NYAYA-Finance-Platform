@@ -1,26 +1,10 @@
-import { RequestStatus } from '@/lib/types';
-import {
-  cn,
-  getStatusColor,
-  getStatusLabel,
-  normalizeRequestStatus,
-} from '@/lib/utils';
+import { cn, getStatusColor, getStatusLabel, normalizeRequestStatus } from '@/lib/utils';
 
 interface StatusBadgeProps {
-  status: RequestStatus | string;
+  status: string;
   className?: string;
   showDot?: boolean;
 }
-
-const dotColors: Record<RequestStatus, string> = {
-  pending: 'bg-yellow-500',
-  recommended: 'bg-blue-500',
-  not_recommended: 'bg-orange-400',
-  approved: 'bg-blue-500',
-  rejected: 'bg-red-500',
-  paid: 'bg-purple-500',
-  completed: 'bg-green-500',
-};
 
 export function StatusBadge({ status, className, showDot = true }: StatusBadgeProps) {
   const safeStatus = normalizeRequestStatus(status);
@@ -34,7 +18,7 @@ export function StatusBadge({ status, className, showDot = true }: StatusBadgePr
       )}
     >
       {showDot && (
-        <span className={cn('w-1.5 h-1.5 rounded-full', dotColors[safeStatus])} />
+        <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70 flex-shrink-0" />
       )}
       {getStatusLabel(safeStatus)}
     </span>

@@ -1,196 +1,158 @@
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
-import { auth } from '@/lib/auth';
-import { getAdminDb } from '@/lib/firebase-admin';
-import { serializeDoc } from '@/lib/firestore';
-import { Request } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
-import { Header } from '@/components/layout/header';
-import { Card } from '@/components/ui/card';
-import { Download, TrendingUp, CheckCircle, XCircle, Clock, DollarSign } from 'lucide-react';
+import { auth, toFrontendRole } from '@/lib/auth';
+import { serverApi } from '@/lib/api-server';
+import type { FinanceRequest } from '@/lib/api-client';
+import { Download, TrendingUp, CheckCircle, XCircle, Clock } from 'lucide-react';
+import { StaggerList, StaggerItem } from '@/components/ui/animate-in';
+import { StatCard } from '@/components/ui/stat-card';
+import { NairaAmount } from '@/components/ui/naira-amount';
+import { GoldButton } from '@/components/ui/gold-button';
+import { AnimatedProgressBar } from '@/components/ui/animated-progress-bar';
+import { BarFill } from '@/components/ui/bar-fill';
+
+const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8001';
 
 export default async function AdminReportsPage() {
   const session = await auth();
   if (!session?.user) redirect('/login');
 
-  const user = session.user as { id: string; role?: string };
-  if (user.role !== 'admin') redirect('/requester');
+  const role = toFrontendRole(session.user.role);
+  if (role !== 'admin') redirect('/my-requests');
 
-  const db = getAdminDb();
-  const snap = await db.collection('requests').orderBy('created_at', 'desc').get();
-  const requests = snap.docs.map((doc) =>
-    serializeDoc(doc.id, doc.data())
-  ) as unknown as Request[];
+  let requests: FinanceRequest[] = [];
+  try {
+    const res = await serverApi.requests.list({ per_page: 500 });
+    requests = res?.data ?? [];
+  } catch { /* show empty state */ }
 
-  const total = requests.length;
-  const pending = requests.filter((r) => r.status === 'pending');
-  const approved = requests.filter((r) => ['approved', 'paid', 'completed'].includes(r.status));
-  const rejected = requests.filter((r) => r.status === 'rejected');
-  const completed = requests.filter((r) => r.status === 'completed');
+  const total    = requests.length;
+  const pending  = requests.filter(r => r.status === 'submitted' || r.status === 'finance_reviewed');
+  const approved = requests.filter(r => ['satgo_approved','partial_payment','paid','receipted','completed'].includes(r.status));
+  const rejected = requests.filter(r => r.status === 'finance_rejected' || r.status === 'satgo_rejected');
 
-  const totalRequested = requests.reduce((sum, r) => sum + (r.amount || 0), 0);
-  const totalApproved = approved.reduce((sum, r) => sum + (r.amount || 0), 0);
-  const totalPending = pending.reduce((sum, r) => sum + (r.amount || 0), 0);
-  const totalRejected = rejected.reduce((sum, r) => sum + (r.amount || 0), 0);
+  const totalRequested = requests.reduce((s, r) => s + r.amount, 0);
+  const totalApproved  = approved.reduce((s, r) => s + r.amount, 0);
+  const totalPending   = pending.reduce((s, r) => s + r.amount, 0);
+  const totalRejected  = rejected.reduce((s, r) => s + r.amount, 0);
 
-  // By category
-  const categories = ['travel', 'supplies', 'events', 'utilities', 'personnel', 'other'] as const;
-  const byCategory = categories.map((cat) => {
-    const catRequests = requests.filter((r) => r.category === cat);
-    return {
-      category: cat,
-      count: catRequests.length,
-      total: catRequests.reduce((sum, r) => sum + (r.amount || 0), 0),
-    };
-  }).filter((c) => c.count > 0).sort((a, b) => b.total - a.total);
+  const deptMap = new Map<string, { count: number; total: number }>();
+  for (const r of requests) {
+    const name = r.department?.name ?? 'Unknown';
+    const ex = deptMap.get(name) ?? { count: 0, total: 0 };
+    deptMap.set(name, { count: ex.count + 1, total: ex.total + r.amount });
+  }
+  const byDept = Array.from(deptMap.entries())
+    .map(([dept, s]) => ({ dept, ...s }))
+    .sort((a, b) => b.total - a.total);
+
+  const maxDeptTotal = byDept[0]?.total ?? 1;
+
+  const bars = [
+    { label: 'Approved / Paid / Completed', count: approved.length, colorClass: 'bg-[#34D399]' },
+    { label: 'Pending Review',              count: pending.length,  colorClass: 'bg-[#FBBF24]' },
+    { label: 'Rejected',                    count: rejected.length, colorClass: 'bg-[#F87171]' },
+  ];
 
   return (
-    <div>
-      <Header title="Reports" userId={user.id} />
-
-      <div className="p-4 sm:p-6 space-y-6">
-        {/* Export */}
-        <div className="flex flex-wrap gap-3">
-          <a
-            href="/api/export"
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
-            <Download className="w-4 h-4" />
-            Export All (CSV)
-          </a>
-          <a
-            href="/api/export?status=pending"
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
-            <Download className="w-4 h-4" />
-            Export Pending
-          </a>
-          <a
-            href="/api/export?status=completed"
-            className="btn-secondary flex items-center gap-2 text-sm"
-          >
-            <Download className="w-4 h-4" />
-            Export Completed
-          </a>
-        </div>
-
-        {/* Summary stats */}
+    <div className="p-5 sm:p-7 space-y-7">
+      {/* Header + exports */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h2 className="text-base font-semibold text-gray-700 mb-3">Overview</h2>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Total Requested</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(totalRequested)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{total} requests</p>
+          <h1 className="font-display text-2xl text-[#F5E8D3]">Reports</h1>
+          <p className="font-body text-sm text-[#A89FB8] mt-0.5">Financial request analytics and exports</p>
+        </div>
+        <div className="flex gap-3">
+          <a href={`${API_BASE}/api/export/requests`} target="_blank" rel="noreferrer">
+            <GoldButton variant="outline" className="gap-2 text-sm">
+              <Download className="w-3.5 h-3.5" />
+              Export Requests
+            </GoldButton>
+          </a>
+          <a href={`${API_BASE}/api/export/budget-summary`} target="_blank" rel="noreferrer">
+            <GoldButton variant="ghost" className="gap-2 text-sm border border-[#2D1A73]">
+              <Download className="w-3.5 h-3.5" />
+              Budget Summary
+            </GoldButton>
+          </a>
+        </div>
+      </div>
+
+      {/* Stat cards */}
+      <StaggerList className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <StaggerItem>
+          <StatCard title="Total Requested" value={totalRequested} icon={<TrendingUp  className="w-4 h-4" />} accentColor="#D4A843"
+            format="currency-compact" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Pending"         value={totalPending}   icon={<Clock       className="w-4 h-4" />} accentColor="#FBBF24"
+            format="currency-compact" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Approved"        value={totalApproved}  icon={<CheckCircle className="w-4 h-4" />} accentColor="#34D399"
+            format="currency-compact" />
+        </StaggerItem>
+        <StaggerItem>
+          <StatCard title="Rejected"        value={totalRejected}  icon={<XCircle     className="w-4 h-4" />} accentColor="#F87171"
+            format="currency-compact" />
+        </StaggerItem>
+      </StaggerList>
+
+      {/* Approval rate */}
+      <div className="rounded-xl p-5 bg-[#13093B] border border-[#2D1A73] space-y-4">
+        <h2 className="font-display text-lg text-[#F5E8D3]">Approval Rate</h2>
+        {total === 0 ? (
+          <p className="font-body text-sm text-[#A89FB8]">No data yet.</p>
+        ) : (
+          <div className="space-y-4">
+            {bars.map(({ label, count, colorClass }) => {
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={label}>
+                  <div className="flex justify-between font-body text-sm mb-2">
+                    <span className="text-[#A89FB8]">{label}</span>
+                    <span className="font-medium text-[#A89FB8]">{count} ({pct}%)</span>
+                  </div>
+                  <div className="h-2 rounded-full bg-[#2D1A73] overflow-hidden">
+                    <BarFill pct={pct} colorClass={colorClass} />
+                  </div>
                 </div>
-                <div className="p-2.5 rounded-lg bg-blue-50 text-blue-600">
-                  <TrendingUp className="w-5 h-5" />
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {/* By department */}
+      {byDept.length > 0 && (
+        <div className="rounded-xl p-5 bg-[#13093B] border border-[#2D1A73]">
+          <h2 className="font-display text-lg text-[#F5E8D3] mb-4">By Department</h2>
+          <div className="space-y-3">
+            {byDept.map(({ dept, count, total: deptTotal }) => (
+              <div key={dept}>
+                <div className="flex items-center justify-between mb-1.5">
+                  <div>
+                    <p className="font-body text-sm font-medium text-[#A89FB8]">{dept}</p>
+                    <p className="font-body text-xs text-[#A89FB8]">{count} request{count !== 1 ? 's' : ''}</p>
+                  </div>
+                  <NairaAmount amount={deptTotal} compact className="text-sm" />
+                </div>
+                <div className="h-1.5 rounded-full bg-[#2D1A73] overflow-hidden">
+                  <BarFill pct={(deptTotal / maxDeptTotal) * 100} />
                 </div>
               </div>
-            </Card>
-            <Card>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Pending</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(totalPending)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{pending.length} requests</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-yellow-50 text-yellow-600">
-                  <Clock className="w-5 h-5" />
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Approved</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(totalApproved)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{approved.length} requests</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-green-50 text-green-600">
-                  <CheckCircle className="w-5 h-5" />
-                </div>
-              </div>
-            </Card>
-            <Card>
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-sm text-gray-500">Rejected</p>
-                  <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(totalRejected)}</p>
-                  <p className="text-xs text-gray-400 mt-0.5">{rejected.length} requests</p>
-                </div>
-                <div className="p-2.5 rounded-lg bg-red-50 text-red-600">
-                  <XCircle className="w-5 h-5" />
-                </div>
-              </div>
-            </Card>
+            ))}
           </div>
         </div>
+      )}
 
-        {/* Completion rate */}
-        <Card>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-semibold text-gray-700">Approval Rate</h2>
-            <DollarSign className="w-4 h-4 text-gray-400" />
-          </div>
-          {total === 0 ? (
-            <p className="text-sm text-gray-400">No data yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {[
-                { label: 'Approved / Paid / Completed', count: approved.length, color: 'bg-green-500' },
-                { label: 'Pending Review', count: pending.length, color: 'bg-yellow-400' },
-                { label: 'Rejected', count: rejected.length, color: 'bg-red-400' },
-              ].map(({ label, count, color }) => (
-                <div key={label}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="text-gray-600">{label}</span>
-                    <span className="font-medium text-gray-900">
-                      {count} ({total > 0 ? Math.round((count / total) * 100) : 0}%)
-                    </span>
-                  </div>
-                  <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-                    <meter
-                      className={`block h-full w-full rounded-full appearance-none ${color}`}
-                      value={count}
-                      min={0}
-                      max={total > 0 ? total : 1}
-                    />
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        {/* By category */}
-        {byCategory.length > 0 && (
-          <Card>
-            <h2 className="text-base font-semibold text-gray-700 mb-4">By Category</h2>
-            <div className="divide-y divide-gray-100">
-              {byCategory.map(({ category, count, total: catTotal }) => (
-                <div key={category} className="flex items-center justify-between py-2.5">
-                  <div>
-                    <p className="text-sm font-medium text-gray-800 capitalize">{category}</p>
-                    <p className="text-xs text-gray-400">{count} request{count !== 1 ? 's' : ''}</p>
-                  </div>
-                  <p className="text-sm font-semibold text-gray-900">{formatCurrency(catTotal)}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
-
-        <p className="text-xs text-gray-400">
-          Use{' '}
-          <Link href="/admin/requests" className="text-blue-500 hover:underline">
-            All Requests
-          </Link>{' '}
-          to filter and review individual records.
-        </p>
-      </div>
+      <p className="font-body text-xs text-[#A89FB8]">
+        Use{' '}
+        <Link href="/admin/requests" className="text-[#D4A843] hover:opacity-80">
+          All Requests
+        </Link>{' '}
+        to filter and review individual records.
+      </p>
     </div>
   );
 }

@@ -1,23 +1,14 @@
 import Link from 'next/link';
-import { Calendar, Tag, ArrowRight } from 'lucide-react';
-import { Request } from '@/lib/types';
+import { Calendar, ArrowRight } from 'lucide-react';
+import type { FinanceRequest } from '@/lib/api-client';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { StatusBadge } from './status-badge';
 
 interface RequestCardProps {
-  request: Request;
+  request: FinanceRequest;
   showRequester?: boolean;
   linkBase?: string;
 }
-
-const categoryIcons: Record<string, string> = {
-  travel: '✈️',
-  supplies: '📦',
-  events: '🎪',
-  utilities: '⚡',
-  personnel: '👥',
-  other: '📋',
-};
 
 export function RequestCard({
   request,
@@ -29,11 +20,12 @@ export function RequestCard({
       {/* Header */}
       <div className="flex items-start justify-between gap-3 mb-3">
         <div className="flex-1 min-w-0">
-          <p className="font-semibold text-gray-900 truncate">{request.purpose}</p>
-          {showRequester && request.user && (
+          <p className="font-semibold text-gray-900 truncate">{request.title}</p>
+          <p className="text-xs font-mono text-gray-400 mt-0.5">{request.reference}</p>
+          {showRequester && (
             <p className="text-xs text-gray-500 mt-0.5">
-              {request.user.name}
-              {request.user.department && ` • ${request.user.department}`}
+              {request.requester.name}
+              {request.department?.name && ` • ${request.department.name}`}
             </p>
           )}
         </div>
@@ -47,11 +39,8 @@ export function RequestCard({
 
       {/* Meta */}
       <div className="flex items-center gap-4 text-xs text-gray-500 mb-4">
-        <span className="flex items-center gap-1">
-          <Tag className="w-3.5 h-3.5" />
-          <span className="capitalize">
-            {categoryIcons[request.category]} {request.category}
-          </span>
+        <span className="capitalize">
+          {request.request_type?.name ?? '—'}
         </span>
         <span className="flex items-center gap-1">
           <Calendar className="w-3.5 h-3.5" />
@@ -60,7 +49,7 @@ export function RequestCard({
       </div>
 
       {/* Rejection reason */}
-      {request.status === 'rejected' && request.rejection_reason && (
+      {(request.status === 'finance_rejected' || request.status === 'satgo_rejected') && request.rejection_reason && (
         <div className="mb-4 p-2.5 bg-red-50 border border-red-100 rounded-lg">
           <p className="text-xs text-red-700">
             <span className="font-medium">Reason: </span>

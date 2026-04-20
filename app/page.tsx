@@ -11,5 +11,5 @@ export default async function Home() {
   if (role === 'admin') {
     redirect('/admin');
   }
-  redirect('/requester');
+  redirect('/my-requests');
 }

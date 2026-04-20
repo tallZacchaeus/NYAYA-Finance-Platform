@@ -1,82 +1,85 @@
+/**
+ * Server-side auth helper for Next.js App Router.
+ *
+ * Uses API_URL (private, server-only) for server-to-server calls.
+ * Forwards only the session cookies needed for Sanctum — NOT all browser cookies.
+ */
+
 import { cookies } from 'next/headers';
-import { getAdminAuth, getAdminDb } from './firebase-admin';
+
+// Server-side only — never exposed to the browser
+const API_URL  = process.env.API_URL ?? process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000';
+const APP_URL  = process.env.NEXT_PUBLIC_APP_URL ?? 'http://localhost:3000';
 
 export interface AppSessionUser {
-  id: string;
-  email: string | null;
+  id: number;
   name: string | null;
-  role?: 'requester' | 'finance' | 'admin';
+  email: string | null;
+  role: string | null;
+  roles: string[];
+  is_active: boolean;
+  department_id?: number | null;
 }
 
 export interface AppSession {
   user: AppSessionUser;
 }
 
-export const SESSION_COOKIE_NAME = 'nyaya_session';
-export const SESSION_DURATION_MS = 60 * 60 * 8 * 1000;
+export type FrontendRole = 'member' | 'team_lead' | 'finance' | 'admin';
 
-const baseSessionCookieOptions = {
-  httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
-  sameSite: 'lax' as const,
-  path: '/',
-};
-
-function getOptionalString(value: unknown): string | null {
-  return typeof value === 'string' && value.trim().length > 0 ? value : null;
+/** Maps a Spatie role name to the frontend role used for routing. */
+export function toFrontendRole(role: string | null): FrontendRole {
+  if (role === 'super_admin')   return 'admin';
+  if (role === 'finance_admin') return 'finance';
+  if (role === 'team_lead')     return 'team_lead';
+  return 'member';
 }
 
-function getUserRole(value: unknown): 'requester' | 'finance' | 'admin' {
-  if (value === 'admin') return 'admin';
-  if (value === 'finance') return 'finance';
-  return 'requester';
-}
-
-export function getSessionCookieOptions(maxAgeSeconds = SESSION_DURATION_MS / 1000) {
-  return {
-    ...baseSessionCookieOptions,
-    maxAge: maxAgeSeconds,
-  };
-}
-
-export function getClearedSessionCookieOptions() {
-  return {
-    ...baseSessionCookieOptions,
-    maxAge: 0,
-  };
+/** Returns only the cookies Sanctum needs. Avoids forwarding analytics / third-party cookies. */
+function getSessionCookieHeader(cookieStore: Awaited<ReturnType<typeof cookies>>): string {
+  return cookieStore
+    .getAll()
+    .filter(c => c.name === 'nyaya-finance-session' || c.name === 'XSRF-TOKEN')
+    .map(c => `${c.name}=${c.value}`)
+    .join('; ');
 }
 
 export async function auth(): Promise<AppSession | null> {
-  const cookieStore = await cookies();
-  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME)?.value;
-
-  if (!sessionCookie) {
-    return null;
-  }
-
   try {
-    const decodedToken = await getAdminAuth().verifySessionCookie(sessionCookie, true);
+    const cookieStore   = await cookies();
+    const cookieHeader  = getSessionCookieHeader(cookieStore);
 
-    let profile: Record<string, unknown> = {};
-    try {
-      const profileDoc = await getAdminDb().collection('users').doc(decodedToken.uid).get();
-      if (profileDoc.exists) {
-        profile = profileDoc.data() ?? {};
-      }
-    } catch (error) {
-      console.error('auth profile lookup error:', error);
-    }
+    if (!cookieHeader) return null;
+
+    const res = await fetch(`${API_URL}/api/auth/me`, {
+      headers: {
+        Accept:              'application/json',
+        'X-Requested-With':  'XMLHttpRequest',
+        Cookie:              cookieHeader,
+        Referer:             `${APP_URL}/`,
+        Origin:              APP_URL,
+      },
+      cache: 'no-store',
+    });
+
+    if (!res.ok) return null;
+
+    const body = await res.json();
+    const u    = body?.data;
+    if (!u) return null;
 
     return {
       user: {
-        id: decodedToken.uid,
-        email: getOptionalString(profile.email) ?? decodedToken.email ?? null,
-        name: getOptionalString(profile.name) ?? decodedToken.name ?? null,
-        role: getUserRole(profile.role),
+        id:            u.id,
+        name:          u.name          ?? null,
+        email:         u.email         ?? null,
+        role:          u.role          ?? null,
+        roles:         u.roles         ?? [],
+        is_active:     u.is_active     ?? true,
+        department_id: u.department_id ?? null,
       },
     };
-  } catch (error) {
-    console.error('auth session verification error:', error);
+  } catch {
     return null;
   }
 }
